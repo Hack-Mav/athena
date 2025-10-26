@@ -1,0 +1,32 @@
+FROM golang:1.21-alpine AS builder
+
+RUN apk add --no-cache git ca-certificates tzdata
+
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o bin/provisioning-service ./cmd/provisioning-service
+
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates tzdata curl wget
+RUN addgroup -g 1001 -S athena && adduser -u 1001 -S athena -G athena
+
+# Install Arduino CLI
+RUN wget -O arduino-cli.tar.gz https://downloads.arduino.cc/arduino-cli/arduino-cli_latest_Linux_64bit.tar.gz && \
+    tar -xzf arduino-cli.tar.gz && \
+    mv arduino-cli /usr/local/bin/ && \
+    rm arduino-cli.tar.gz
+
+WORKDIR /app
+COPY --from=builder /app/bin/provisioning-service /app/service
+COPY --from=builder /app/configs /app/configs
+RUN chown -R athena:athena /app
+
+USER athena
+EXPOSE 8003
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8003/health || exit 1
+
+CMD ["/app/service"]

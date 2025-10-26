@@ -1,0 +1,206 @@
+version: '3.8'
+
+services:
+  # Google Cloud Datastore Emulator
+  datastore-emulator:
+    image: google/cloud-sdk:alpine
+    command: >
+      sh -c "gcloud beta emulators datastore start --host-port=0.0.0.0:8081 --project=athena-dev --no-store-on-disk"
+    ports:
+      - "8081:8081"
+    environment:
+      CLOUDSDK_CORE_PROJECT: athena-dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Redis for caching and session storage
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Eclipse Mosquitto MQTT Broker
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./configs/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_logs:/mosquitto/log
+    healthcheck:
+      test: ["CMD", "mosquitto_pub", "-h", "localhost", "-t", "test", "-m", "health_check"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # MinIO for object storage
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: athena
+      MINIO_ROOT_PASSWORD: dev_password
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: .
+      dockerfile: build/Dockerfile.api-gateway
+    ports:
+      - "8000:8000"
+    environment:
+      ATHENA_ENVIRONMENT: development
+      ATHENA_LOG_LEVEL: debug
+      ATHENA_DATASTORE_HOST: datastore-emulator:8081
+      ATHENA_REDIS_ADDR: redis:6379
+      ATHENA_MQTT_BROKER: tcp://mosquitto:1883
+      ATHENA_MINIO_ENDPOINT: minio:9000
+    depends_on:
+      - datastore-emulator
+      - redis
+      - mosquitto
+      - minio
+    restart: unless-stopped
+
+  # Template Service
+  template-service:
+    build:
+      context: .
+      dockerfile: build/Dockerfile.template-service
+    ports:
+      - "8001:8001"
+    environment:
+      ATHENA_ENVIRONMENT: development
+      ATHENA_LOG_LEVEL: debug
+      ATHENA_DATASTORE_HOST: datastore-emulator:8081
+      ATHENA_REDIS_ADDR: redis:6379
+      ATHENA_MINIO_ENDPOINT: minio:9000
+    depends_on:
+      - datastore-emulator
+      - redis
+      - minio
+    restart: unless-stopped
+
+  # NLP Service
+  nlp-service:
+    build:
+      context: .
+      dockerfile: build/Dockerfile.nlp-service
+    ports:
+      - "8002:8002"
+    environment:
+      ATHENA_ENVIRONMENT: development
+      ATHENA_LOG_LEVEL: debug
+      ATHENA_DATASTORE_HOST: datastore-emulator:8081
+      ATHENA_REDIS_ADDR: redis:6379
+      ATHENA_LLM_PROVIDER: openai
+      ATHENA_LLM_ENDPOINT: https://api.openai.com/v1
+    depends_on:
+      - datastore-emulator
+      - redis
+    restart: unless-stopped
+
+  # Provisioning Service
+  provisioning-service:
+    build:
+      context: .
+      dockerfile: build/Dockerfile.provisioning-service
+    ports:
+      - "8003:8003"
+    environment:
+      ATHENA_ENVIRONMENT: development
+      ATHENA_LOG_LEVEL: debug
+      ATHENA_DATASTORE_HOST: datastore-emulator:8081
+      ATHENA_REDIS_ADDR: redis:6379
+    depends_on:
+      - datastore-emulator
+      - redis
+    restart: unless-stopped
+    privileged: true  # Required for USB device access
+    volumes:
+      - /dev:/dev  # Mount device directory for Arduino access
+
+  # Device Service
+  device-service:
+    build:
+      context: .
+      dockerfile: build/Dockerfile.device-service
+    ports:
+      - "8004:8004"
+    environment:
+      ATHENA_ENVIRONMENT: development
+      ATHENA_LOG_LEVEL: debug
+      ATHENA_DATASTORE_HOST: datastore-emulator:8081
+      ATHENA_REDIS_ADDR: redis:6379
+    depends_on:
+      - datastore-emulator
+      - redis
+    restart: unless-stopped
+
+  # Telemetry Service
+  telemetry-service:
+    build:
+      context: .
+      dockerfile: build/Dockerfile.telemetry-service
+    ports:
+      - "8005:8005"
+    environment:
+      ATHENA_ENVIRONMENT: development
+      ATHENA_LOG_LEVEL: debug
+      ATHENA_DATASTORE_HOST: datastore-emulator:8081
+      ATHENA_REDIS_ADDR: redis:6379
+      ATHENA_MQTT_BROKER: tcp://mosquitto:1883
+    depends_on:
+      - datastore-emulator
+      - redis
+      - mosquitto
+    restart: unless-stopped
+
+  # OTA Service
+  ota-service:
+    build:
+      context: .
+      dockerfile: build/Dockerfile.ota-service
+    ports:
+      - "8006:8006"
+    environment:
+      ATHENA_ENVIRONMENT: development
+      ATHENA_LOG_LEVEL: debug
+      ATHENA_DATASTORE_HOST: datastore-emulator:8081
+      ATHENA_REDIS_ADDR: redis:6379
+      ATHENA_MINIO_ENDPOINT: minio:9000
+    depends_on:
+      - datastore-emulator
+      - redis
+      - minio
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  mosquitto_data:
+  mosquitto_logs:
+  minio_data:

@@ -1,0 +1,43 @@
+# ATHENA Platform Configuration
+
+# Environment settings
+environment: development
+log_level: info
+
+# Service discovery
+services:
+  template-service: "http://localhost:8001"
+  nlp-service: "http://localhost:8002"
+  provisioning-service: "http://localhost:8003"
+  device-service: "http://localhost:8004"
+  telemetry-service: "http://localhost:8005"
+  ota-service: "http://localhost:8006"
+  api-gateway: "http://localhost:8000"
+
+# Database configuration
+datastore_project: "athena-dev"
+datastore_host: "localhost:8081"
+
+# Redis configuration
+redis_addr: "localhost:6379"
+redis_password: ""
+redis_db: 0
+
+# MQTT configuration
+mqtt_broker: "tcp://localhost:1883"
+mqtt_username: ""
+mqtt_password: ""
+
+# MinIO configuration
+minio_endpoint: "localhost:9000"
+minio_access_key: "athena"
+minio_secret_key: "dev_password"
+minio_bucket: "athena-dev"
+
+# Security
+jwt_secret: "dev-secret-key-change-in-production"
+
+# External services
+llm_provider: "openai"
+llm_api_key: ""  # Set via environment variable ATHENA_LLM_API_KEY
+llm_endpoint: "https://api.openai.com/v1"
