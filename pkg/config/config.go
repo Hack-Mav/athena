@@ -45,6 +45,9 @@ type Config struct {
 	LLMProvider string `mapstructure:"llm_provider"`
 	LLMAPIKey   string `mapstructure:"llm_api_key"`
 	LLMEndpoint string `mapstructure:"llm_endpoint"`
+
+	// Arduino CLI configuration
+	ArduinoCLIPath string `mapstructure:"arduino_cli_path"`
 }
 
 // Load loads configuration for the specified service
@@ -112,9 +115,10 @@ func Default(serviceName string) *Config {
 			"api-gateway":          "http://localhost:8000",
 		},
 		JWTSecret:   "dev-secret-key",
-		LLMProvider: "openai",
-		LLMAPIKey:   "",
-		LLMEndpoint: "https://api.openai.com/v1",
+		LLMProvider:    "openai",
+		LLMAPIKey:      "",
+		LLMEndpoint:    "https://api.openai.com/v1",
+		ArduinoCLIPath: "arduino-cli",
 	}
 }
 
@@ -139,6 +143,7 @@ func setDefaults(serviceName string) {
 	viper.SetDefault("jwt_secret", "dev-secret-key")
 	viper.SetDefault("llm_provider", "openai")
 	viper.SetDefault("llm_endpoint", "https://api.openai.com/v1")
+	viper.SetDefault("arduino_cli_path", "arduino-cli")
 }
 
 func getDefaultHTTPPort(serviceName string) string {

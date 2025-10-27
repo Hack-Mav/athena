@@ -10,11 +10,7 @@
 
 - [x] 2. Implement Template Service foundation
 
-
-
-
   - [x] 2.1 Create template data models and Datastore entities
-
 
     - Define Template, TemplateAsset, and related Go structs with Datastore tags
     - Implement JSON Schema validation for template parameters
@@ -23,14 +19,12 @@
 
   - [x] 2.2 Build template CRUD operations
 
-
     - Implement template creation, retrieval, update, and deletion operations
     - Add template filtering and search functionality by category, board type, and sensors
     - Create template versioning system with backward compatibility checks
     - _Requirements: 1.2, 1.3, 10.5_
 
   - [x] 2.3 Develop template validation and rendering engine
-
 
     - Build parameter validation against JSON Schema with board capability checks
     - Implement template rendering with Go text/template and custom helpers
@@ -43,20 +37,24 @@
     - Test wiring diagram generation with different component combinations
     - _Requirements: 1.1, 2.1, 2.2_
 
-- [ ] 3. Build Arduino CLI integration and provisioning service
-  - [ ] 3.1 Create Arduino CLI wrapper and board management
+- [x] 3. Build Arduino CLI integration and provisioning service
+
+  - [x] 3.1 Create Arduino CLI wrapper and board management
+
     - Implement Arduino CLI command execution with proper error handling
     - Build board detection and capability mapping system
     - Create library dependency resolution and installation automation
     - _Requirements: 4.1, 4.2, 1.4_
 
-  - [ ] 3.2 Implement firmware compilation pipeline
+  - [x] 3.2 Implement firmware compilation pipeline
+
     - Build template compilation with parameter injection
     - Create build artifact management with checksums and metadata
     - Implement compilation caching for faster subsequent builds
     - _Requirements: 4.1, 4.5_
 
-  - [ ] 3.3 Develop device flashing and verification system
+  - [x] 3.3 Develop device flashing and verification system
+
     - Implement USB port detection and device communication
     - Build firmware flashing with progress tracking and error recovery
     - Create post-flash health check system via serial communication
