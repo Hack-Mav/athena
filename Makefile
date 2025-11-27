@@ -52,13 +52,13 @@ build: deps $(SERVICES) $(CLI_SERVICE)
 $(SERVICES):
 	@echo "Building $@..."
 	@mkdir -p $(BIN_DIR)
-	$(GOBUILD) -o $(BIN_DIR)/$@ ./cmd/$@
+	$(GOBUILD) -o $(BIN_DIR)/$@ ./services/$@
 
 .PHONY: $(CLI_SERVICE)
 $(CLI_SERVICE):
 	@echo "Building athena-cli..."
 	@mkdir -p $(BIN_DIR)
-	$(GOBUILD) -o $(BIN_DIR)/athena-cli ./cmd/cli
+	$(GOBUILD) -o $(BIN_DIR)/athena-cli ./services/cli
 
 .PHONY: build-service
 build-service:
@@ -68,7 +68,7 @@ build-service:
 	fi
 	@echo "Building $(SERVICE)..."
 	@mkdir -p $(BIN_DIR)
-	$(GOBUILD) -o $(BIN_DIR)/$(SERVICE) ./cmd/$(SERVICE)
+	$(GOBUILD) -o $(BIN_DIR)/$(SERVICE) ./services/$(SERVICE)
 
 .PHONY: build-cli
 build-cli: $(CLI_SERVICE)
@@ -86,7 +86,7 @@ test-service:
 		exit 1; \
 	fi
 	@echo "Running tests for $(SERVICE)..."
-	$(GOTEST) -v -race ./internal/$(SERVICE)/... ./cmd/$(SERVICE)/...
+	$(GOTEST) -v -race ./services/$(SERVICE)/... ./internal/$(SERVICE)/...
 
 .PHONY: test-coverage
 test-coverage: test
@@ -184,9 +184,9 @@ clean-all: clean docker-clean
 install: build
 	@echo "Installing binaries..."
 	@for service in $(SERVICES); do \
-		cp $(BIN_DIR)/$$service $(GOPATH)/bin/; \
+		cp $(BIN_DIR)/$$service $(GOBIN)/; \
 	done
-	cp $(BIN_DIR)/athena-cli $(GOPATH)/bin/
+	cp $(BIN_DIR)/athena-cli $(GOBIN)/
 
 # CI/CD targets
 .PHONY: ci

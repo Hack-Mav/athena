@@ -66,14 +66,16 @@
     - Validate error handling for common failure scenarios
     - _Requirements: 4.1, 4.2, 4.4_
 
-- [ ] 4. Implement secrets management and security
-  - [ ] 4.1 Create secrets vault service
+- [x] 4. Implement secrets management and security
+  - [x] 4.1 Create secrets vault service
+
     - Build secure credential storage with encryption at rest
     - Implement secrets injection during firmware compilation without persistence
     - Create access control and audit logging for secret operations
     - _Requirements: 8.1, 8.2, 2.5_
 
-  - [ ] 4.2 Develop device authentication system
+  - [x] 4.2 Develop device authentication system
+
     - Implement device certificate generation and management
     - Build device registration with unique identity assignment
     - Create authentication middleware for device communications
@@ -85,95 +87,123 @@
     - Test access control enforcement and audit trail completeness
     - _Requirements: 8.1, 8.2, 8.3_
 
-- [ ] 5. Build device registry and management service
-  - [ ] 5.1 Create device data models and registry operations
+- [x] 5. Build device registry and management service
+  - [x] 5.1 Create device data models and registry operations
+
     - Define Device entity with Datastore schema and indexes
     - Implement device registration, status tracking, and lifecycle management
     - Build device search and filtering with pagination support
     - _Requirements: 4.5, 5.1, 5.4_
 
-  - [ ] 5.2 Implement device status monitoring
+  - [x] 5.2 Implement device status monitoring
+
     - Create device heartbeat and last-seen tracking system
     - Build device status aggregation and health monitoring
     - Implement device offline detection with configurable timeouts
     - _Requirements: 5.2, 5.4_
 
-  - [ ]* 5.3 Write unit tests for device registry
+  - [x] 5.3 Write unit tests for device registry
+
     - Test device CRUD operations and status transitions
     - Validate search and filtering functionality
     - Test device lifecycle management and cleanup operations
     - _Requirements: 4.5, 5.1, 5.2_
 
-- [ ] 6. Develop telemetry collection and processing service
-  - [ ] 6.1 Create MQTT telemetry ingestion
+- [-] 6. Develop telemetry collection and processing service
+
+
+  - [x] 6.1 Create MQTT telemetry ingestion
+
+
     - Implement MQTT broker integration with topic-based routing
     - Build telemetry data validation and parsing
     - Create time-series data storage in Datastore with efficient indexing
     - _Requirements: 5.1, 5.2_
 
-  - [ ] 6.2 Build telemetry query and streaming APIs
+  - [x] 6.2 Build telemetry query and streaming APIs
+
+
     - Implement time-range queries for device metrics with aggregation
     - Create real-time data streaming using WebSockets or Server-Sent Events
     - Build telemetry data export functionality for external systems
     - _Requirements: 5.2, 5.3_
 
-  - [ ] 6.3 Implement alerting and threshold monitoring
+  - [x] 6.3 Implement alerting and threshold monitoring
+
+
     - Create configurable alert thresholds for device metrics
     - Build alert notification system with multiple delivery channels
     - Implement alert escalation and acknowledgment workflows
     - _Requirements: 5.4_
 
-  - [ ]* 6.4 Write tests for telemetry processing
+  - [x] 6.4 Write tests for telemetry processing
+
+
+
+
     - Test MQTT message ingestion and data validation
     - Validate time-series queries and aggregation accuracy
     - Test alert threshold evaluation and notification delivery
     - _Requirements: 5.1, 5.2, 5.4_
 
-- [ ] 7. Implement NLP planner service
-  - [ ] 7.1 Create natural language parsing engine
+- [-] 7. Implement NLP planner service
+
+
+  - [x] 7.1 Create natural language parsing engine
+
+
     - Integrate with LLM provider (OpenAI/local) with configurable endpoints
     - Build requirement extraction from natural language input
     - Implement intent classification and technical specification parsing
     - _Requirements: 3.1, 3.2_
 
-  - [ ] 7.2 Develop template selection and parameter filling
+  - [x] 7.2 Develop template selection and parameter filling
+
+
     - Build template matching algorithm based on extracted requirements
     - Implement automatic parameter filling with constraint satisfaction
     - Create board and component compatibility validation
     - _Requirements: 3.2, 3.3_
 
-  - [ ] 7.3 Build safety validation and plan generation
+  - [x] 7.3 Build safety validation and plan generation
+
+
     - Implement electrical safety checks for voltage, current, and pin compatibility
     - Create bill of materials generation with component specifications
     - Build implementation plan generation with step-by-step instructions
     - _Requirements: 3.4, 3.5, 9.1, 9.2, 9.3_
 
-  - [ ]* 7.4 Write tests for NLP processing
+  - [x] 7.4 Write tests for NLP processing
     - Test natural language parsing with diverse input scenarios
     - Validate template selection accuracy and parameter filling
     - Test safety validation rules and error detection
     - _Requirements: 3.1, 3.2, 3.4_
 
-- [ ] 8. Build OTA update system
-  - [ ] 8.1 Create firmware release management
+- [-] 8. Build OTA update system
+
+  - [x] 8.1 Create firmware release management
+
     - Implement firmware release creation with versioning and metadata
     - Build binary signing and verification system
     - Create release channel management (stable, beta, alpha)
     - _Requirements: 6.1, 6.2_
 
-  - [ ] 8.2 Develop deployment and rollout system
+  - [x] 8.2 Develop deployment and rollout system
+
     - Implement staged rollout with percentage-based deployment
     - Build rollback mechanism with automatic failure detection
     - Create deployment status tracking and reporting
     - _Requirements: 6.3, 6.4_
 
-  - [ ] 8.3 Build device-side OTA client integration
+  - [x] 8.3 Build device-side OTA client integration
+
     - Create OTA client library for Arduino devices
     - Implement secure update download and verification
     - Build update status reporting back to OTA service
     - _Requirements: 6.2, 6.4_
 
-  - [ ]* 8.4 Write tests for OTA functionality
+  - [x] 8.4 Write tests for OTA functionality
+
     - Test release creation and binary signing processes
     - Validate staged deployment and rollback mechanisms
     - Test device authentication and update verification
@@ -198,7 +228,8 @@
     - Build OTA update management commands
     - _Requirements: 7.1, 7.3, 3.1, 5.3_
 
-  - [ ]* 9.4 Write CLI integration tests
+  - [ ] 9.4 Write CLI integration tests
+
     - Test end-to-end workflows from template selection to device provisioning
     - Validate command-line argument parsing and validation
     - Test error handling and user feedback mechanisms
@@ -235,7 +266,8 @@
     - Implement update status monitoring and rollback interface
     - _Requirements: 7.2, 6.1, 6.3, 6.4_
 
-  - [ ]* 10.6 Write frontend tests and validation
+  - [ ] 10.6 Write frontend tests and validation
+
     - Test component functionality and user interactions
     - Validate form submissions and API integration
     - Test responsive design and accessibility compliance

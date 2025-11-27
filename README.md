@@ -134,7 +134,7 @@ export ATHENA_LLM_API_KEY=your-openai-api-key
 ### Project Structure
 
 ```
-├── cmd/                    # Service entry points
+├── services/               # Service entry points
 │   ├── api-gateway/
 │   ├── template-service/
 │   ├── nlp-service/
@@ -142,20 +142,11 @@ export ATHENA_LLM_API_KEY=your-openai-api-key
 │   ├── device-service/
 │   ├── telemetry-service/
 │   ├── ota-service/
+│   ├── secrets-service/
 │   └── cli/
-├── internal/               # Internal packages
-│   ├── template/
-│   ├── nlp/
-│   ├── provisioning/
-│   ├── device/
-│   ├── telemetry/
-│   ├── ota/
-│   ├── gateway/
-│   └── cli/
-├── pkg/                    # Shared packages
-│   ├── config/
-│   ├── logger/
-│   └── errors/
+│   └── platform-lib/     # Shared library
+├── internal/               # Internal packages (if exists)
+├── pkg/                    # Shared packages (if exists)
 ├── build/                  # Docker files
 ├── configs/                # Configuration files
 └── .github/workflows/      # CI/CD pipelines

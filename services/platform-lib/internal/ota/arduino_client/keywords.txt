@@ -1,0 +1,45 @@
+#######################################
+# Syntax Coloring Map For ATHENA OTA Client
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+OTAClient	KEYWORD1
+FirmwareUpdate	KEYWORD1
+ProgressCallback	KEYWORD1
+StatusCallback	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+begin	KEYWORD2
+checkForUpdate	KEYWORD2
+performUpdate	KEYWORD2
+checkAndUpdate	KEYWORD2
+setProgressCallback	KEYWORD2
+setStatusCallback	KEYWORD2
+getLastError	KEYWORD2
+getLastErrorMessage	KEYWORD2
+setCACertificate	KEYWORD2
+setVerifySignature	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
+OTA_STATUS_PENDING	LITERAL1
+OTA_STATUS_DOWNLOADING	LITERAL1
+OTA_STATUS_INSTALLING	LITERAL1
+OTA_STATUS_COMPLETED	LITERAL1
+OTA_STATUS_FAILED	LITERAL1
+
+OTA_ERROR_NONE	LITERAL1
+OTA_ERROR_NO_UPDATE	LITERAL1
+OTA_ERROR_NETWORK	LITERAL1
+OTA_ERROR_DOWNLOAD	LITERAL1
+OTA_ERROR_VERIFICATION	LITERAL1
+OTA_ERROR_INSTALLATION	LITERAL1
+OTA_ERROR_INVALID_RESPONSE	LITERAL1
