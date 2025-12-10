@@ -19,21 +19,21 @@ func (vm *VersionManager) ParseVersion(version string) (major, minor, patch int,
 	// Support semantic versioning (e.g., "1.2.3") and simple versioning (e.g., "1.0")
 	versionRegex := regexp.MustCompile(`^(\d+)\.(\d+)(?:\.(\d+))?$`)
 	matches := versionRegex.FindStringSubmatch(version)
-	
+
 	if len(matches) < 3 {
 		return 0, 0, 0, fmt.Errorf("invalid version format: %s", version)
 	}
-	
+
 	major, err = strconv.Atoi(matches[1])
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("invalid major version: %s", matches[1])
 	}
-	
+
 	minor, err = strconv.Atoi(matches[2])
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("invalid minor version: %s", matches[2])
 	}
-	
+
 	// Patch version is optional
 	if len(matches) > 3 && matches[3] != "" {
 		patch, err = strconv.Atoi(matches[3])
@@ -41,7 +41,7 @@ func (vm *VersionManager) ParseVersion(version string) (major, minor, patch int,
 			return 0, 0, 0, fmt.Errorf("invalid patch version: %s", matches[3])
 		}
 	}
-	
+
 	return major, minor, patch, nil
 }
 
@@ -52,33 +52,33 @@ func (vm *VersionManager) CompareVersions(v1, v2 string) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("failed to parse version %s: %w", v1, err)
 	}
-	
+
 	major2, minor2, patch2, err := vm.ParseVersion(v2)
 	if err != nil {
 		return 0, fmt.Errorf("failed to parse version %s: %w", v2, err)
 	}
-	
+
 	// Compare major version
 	if major1 < major2 {
 		return -1, nil
 	} else if major1 > major2 {
 		return 1, nil
 	}
-	
+
 	// Compare minor version
 	if minor1 < minor2 {
 		return -1, nil
 	} else if minor1 > minor2 {
 		return 1, nil
 	}
-	
+
 	// Compare patch version
 	if patch1 < patch2 {
 		return -1, nil
 	} else if patch1 > patch2 {
 		return 1, nil
 	}
-	
+
 	return 0, nil
 }
 
@@ -87,7 +87,7 @@ func (vm *VersionManager) GetLatestVersion(versions []string) (string, error) {
 	if len(versions) == 0 {
 		return "", fmt.Errorf("no versions provided")
 	}
-	
+
 	latest := versions[0]
 	for _, version := range versions[1:] {
 		comparison, err := vm.CompareVersions(version, latest)
@@ -98,7 +98,7 @@ func (vm *VersionManager) GetLatestVersion(versions []string) (string, error) {
 			latest = version
 		}
 	}
-	
+
 	return latest, nil
 }
 
@@ -109,12 +109,12 @@ func (vm *VersionManager) IsBackwardCompatible(oldVersion, newVersion string) (b
 	if err != nil {
 		return false, fmt.Errorf("failed to parse old version %s: %w", oldVersion, err)
 	}
-	
+
 	newMajor, _, _, err := vm.ParseVersion(newVersion)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse new version %s: %w", newVersion, err)
 	}
-	
+
 	// Same major version indicates backward compatibility
 	return oldMajor == newMajor, nil
 }
@@ -125,7 +125,7 @@ func (vm *VersionManager) GenerateNextVersion(currentVersion string, changeType 
 	if err != nil {
 		return "", fmt.Errorf("failed to parse current version %s: %w", currentVersion, err)
 	}
-	
+
 	switch changeType {
 	case MajorChange:
 		return fmt.Sprintf("%d.0.0", major+1), nil
@@ -152,13 +152,13 @@ const (
 
 // VersionInfo contains detailed information about a template version
 type VersionInfo struct {
-	Version     string    `json:"version"`
-	Major       int       `json:"major"`
-	Minor       int       `json:"minor"`
-	Patch       int       `json:"patch"`
-	IsLatest    bool      `json:"is_latest"`
-	ReleaseDate string    `json:"release_date"`
-	Changes     []string  `json:"changes,omitempty"`
+	Version     string   `json:"version"`
+	Major       int      `json:"major"`
+	Minor       int      `json:"minor"`
+	Patch       int      `json:"patch"`
+	IsLatest    bool     `json:"is_latest"`
+	ReleaseDate string   `json:"release_date"`
+	Changes     []string `json:"changes,omitempty"`
 }
 
 // GetVersionInfo returns detailed information about template versions
@@ -166,19 +166,19 @@ func (vm *VersionManager) GetVersionInfo(versions []string) ([]*VersionInfo, err
 	if len(versions) == 0 {
 		return []*VersionInfo{}, nil
 	}
-	
+
 	latest, err := vm.GetLatestVersion(versions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get latest version: %w", err)
 	}
-	
+
 	var versionInfos []*VersionInfo
 	for _, version := range versions {
 		major, minor, patch, err := vm.ParseVersion(version)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse version %s: %w", version, err)
 		}
-		
+
 		info := &VersionInfo{
 			Version:  version,
 			Major:    major,
@@ -186,10 +186,10 @@ func (vm *VersionManager) GetVersionInfo(versions []string) ([]*VersionInfo, err
 			Patch:    patch,
 			IsLatest: version == latest,
 		}
-		
+
 		versionInfos = append(versionInfos, info)
 	}
-	
+
 	return versionInfos, nil
 }
 
@@ -198,11 +198,11 @@ func (vm *VersionManager) SortVersions(versions []string) ([]string, error) {
 	if len(versions) <= 1 {
 		return versions, nil
 	}
-	
+
 	// Create a copy to avoid modifying the original slice
 	sorted := make([]string, len(versions))
 	copy(sorted, versions)
-	
+
 	// Simple bubble sort for versions
 	for i := 0; i < len(sorted)-1; i++ {
 		for j := 0; j < len(sorted)-i-1; j++ {
@@ -215,7 +215,7 @@ func (vm *VersionManager) SortVersions(versions []string) ([]string, error) {
 			}
 		}
 	}
-	
+
 	return sorted, nil
 }
 
@@ -224,27 +224,27 @@ func (vm *VersionManager) ValidateVersionSequence(versions []string) error {
 	if len(versions) <= 1 {
 		return nil
 	}
-	
+
 	sorted, err := vm.SortVersions(versions)
 	if err != nil {
 		return fmt.Errorf("failed to sort versions: %w", err)
 	}
-	
+
 	for i := 1; i < len(sorted); i++ {
 		prev := sorted[i-1]
 		curr := sorted[i]
-		
+
 		// Check that each version is properly incremented
 		prevMajor, prevMinor, _, err := vm.ParseVersion(prev)
 		if err != nil {
 			return fmt.Errorf("failed to parse version %s: %w", prev, err)
 		}
-		
+
 		currMajor, currMinor, currPatch, err := vm.ParseVersion(curr)
 		if err != nil {
 			return fmt.Errorf("failed to parse version %s: %w", curr, err)
 		}
-		
+
 		// Validate version increment rules
 		if currMajor > prevMajor {
 			// Major version increment should reset minor and patch to 0
@@ -258,6 +258,6 @@ func (vm *VersionManager) ValidateVersionSequence(versions []string) error {
 			}
 		}
 	}
-	
+
 	return nil
 }

@@ -107,7 +107,7 @@ func TestExporter_ExportJSON(t *testing.T) {
 	}
 
 	exporter := NewExporter(mockRepo)
-	
+
 	request := &ExportRequest{
 		DeviceID: "device-001",
 		TimeRange: TimeRange{
@@ -146,7 +146,7 @@ func TestExporter_ExportCSV(t *testing.T) {
 	}
 
 	exporter := NewExporter(mockRepo)
-	
+
 	request := &ExportRequest{
 		DeviceID: "device-001",
 		TimeRange: TimeRange{
@@ -167,10 +167,10 @@ func TestExporter_ExportCSV(t *testing.T) {
 
 	// Should have header + 1 data row
 	assert.Len(t, records, 2)
-	
+
 	// Check header
 	assert.Equal(t, []string{"timestamp", "metric_name", "metric_value", "tags"}, records[0])
-	
+
 	// Check data row
 	assert.Equal(t, "temperature", records[1][1])
 	assert.Equal(t, "25.5", records[1][2])
@@ -186,7 +186,7 @@ func TestExporter_ExportAggregatedJSON(t *testing.T) {
 	}
 
 	exporter := NewExporter(mockRepo)
-	
+
 	query := &AggregationQuery{
 		DeviceID:   "device-001",
 		MetricName: "temperature",
@@ -226,7 +226,7 @@ func TestExporter_ExportAggregatedCSV(t *testing.T) {
 	}
 
 	exporter := NewExporter(mockRepo)
-	
+
 	query := &AggregationQuery{
 		DeviceID:   "device-001",
 		MetricName: "temperature",
@@ -249,10 +249,10 @@ func TestExporter_ExportAggregatedCSV(t *testing.T) {
 
 	// Should have header + 2 data rows
 	assert.Len(t, records, 3)
-	
+
 	// Check header
 	assert.Equal(t, []string{"timestamp", "value"}, records[0])
-	
+
 	// Check data rows
 	assert.Equal(t, "25.500000", records[1][1])
 	assert.Equal(t, "26.000000", records[2][1])
@@ -261,7 +261,7 @@ func TestExporter_ExportAggregatedCSV(t *testing.T) {
 func TestExporter_UnsupportedFormat(t *testing.T) {
 	mockRepo := &MockRepository{}
 	exporter := NewExporter(mockRepo)
-	
+
 	request := &ExportRequest{
 		DeviceID: "device-001",
 		TimeRange: TimeRange{
@@ -322,7 +322,7 @@ func TestExporter_ExportCSVWithMultipleMetrics(t *testing.T) {
 	}
 
 	exporter := NewExporter(mockRepo)
-	
+
 	request := &ExportRequest{
 		DeviceID: "device-001",
 		TimeRange: TimeRange{
@@ -339,10 +339,10 @@ func TestExporter_ExportCSVWithMultipleMetrics(t *testing.T) {
 	// Parse CSV output
 	csvContent := buf.String()
 	lines := strings.Split(strings.TrimSpace(csvContent), "\n")
-	
+
 	// Should have header + 3 data rows
 	assert.Len(t, lines, 4)
-	
+
 	// Verify header
 	assert.Contains(t, lines[0], "timestamp")
 	assert.Contains(t, lines[0], "metric_name")

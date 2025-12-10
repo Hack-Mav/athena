@@ -14,17 +14,17 @@ type Repository interface {
 	GetTemplate(ctx context.Context, id, version string) (*Template, error)
 	UpdateTemplate(ctx context.Context, template *Template) error
 	DeleteTemplate(ctx context.Context, id, version string) error
-	
+
 	// Template querying
 	ListTemplates(ctx context.Context, filters *TemplateFilters) ([]*Template, error)
 	SearchTemplates(ctx context.Context, query string, filters *TemplateFilters) ([]*Template, error)
 	GetTemplateVersions(ctx context.Context, id string) ([]string, error)
-	
+
 	// Asset operations
 	CreateAsset(ctx context.Context, templateID, templateVersion string, asset *Asset) error
 	GetAssets(ctx context.Context, templateID, templateVersion string) ([]*Asset, error)
 	DeleteAsset(ctx context.Context, templateID, templateVersion, assetType, assetPath string) error
-	
+
 	// Utility operations
 	TemplateExists(ctx context.Context, id, version string) (bool, error)
 	GetTemplateCount(ctx context.Context, filters *TemplateFilters) (int64, error)
@@ -52,7 +52,7 @@ func (r *MemoryRepository) CreateTemplate(ctx context.Context, template *Templat
 	}
 
 	key := fmt.Sprintf("%s#%s", template.ID, template.Version)
-	
+
 	// Check if template already exists
 	if _, exists := r.templates[key]; exists {
 		return fmt.Errorf("template %s version %s already exists", template.ID, template.Version)
@@ -111,7 +111,7 @@ func (r *MemoryRepository) UpdateTemplate(ctx context.Context, template *Templat
 	}
 
 	key := fmt.Sprintf("%s#%s", template.ID, template.Version)
-	
+
 	// Check if template exists
 	if _, exists := r.templates[key]; !exists {
 		return fmt.Errorf("template %s version %s not found", template.ID, template.Version)
@@ -145,7 +145,7 @@ func (r *MemoryRepository) DeleteTemplate(ctx context.Context, id, version strin
 	}
 
 	key := fmt.Sprintf("%s#%s", id, version)
-	
+
 	// Check if template exists
 	if _, exists := r.templates[key]; !exists {
 		return fmt.Errorf("template %s version %s not found", id, version)
@@ -246,7 +246,7 @@ func (r *MemoryRepository) CreateAsset(ctx context.Context, templateID, template
 	}
 
 	templateKey := fmt.Sprintf("%s#%s", templateID, templateVersion)
-	
+
 	// Check if template exists
 	if _, exists := r.templates[templateKey]; !exists {
 		return fmt.Errorf("template %s version %s not found", templateID, templateVersion)
@@ -375,15 +375,15 @@ func (r *MemoryRepository) matchesQuery(template *Template, query string) bool {
 
 	// Simple text search in name, description, and category
 	query = strings.ToLower(query)
-	
+
 	if strings.Contains(strings.ToLower(template.Name), query) {
 		return true
 	}
-	
+
 	if strings.Contains(strings.ToLower(template.Description), query) {
 		return true
 	}
-	
+
 	if strings.Contains(strings.ToLower(template.Category), query) {
 		return true
 	}

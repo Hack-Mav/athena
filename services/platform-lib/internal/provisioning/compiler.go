@@ -15,10 +15,10 @@ import (
 
 // Compiler handles Arduino firmware compilation
 type Compiler struct {
-	cli           *ArduinoCLI
-	workspaceDir  string
-	cacheDir      string
-	enableCache   bool
+	cli          *ArduinoCLI
+	workspaceDir string
+	cacheDir     string
+	enableCache  bool
 }
 
 // NewCompiler creates a new compiler instance
@@ -43,15 +43,15 @@ type CompilationRequest struct {
 
 // CompilationResult represents the result of compilation
 type CompilationResult struct {
-	Success      bool                   `json:"success"`
-	BinaryPath   string                 `json:"binary_path,omitempty"`
-	BinaryHash   string                 `json:"binary_hash,omitempty"`
-	Size         CompilationSize        `json:"size,omitempty"`
-	Duration     time.Duration          `json:"duration"`
-	CacheHit     bool                   `json:"cache_hit"`
-	Metadata     CompilationMetadata    `json:"metadata"`
-	Errors       []CompilationError     `json:"errors,omitempty"`
-	Warnings     []CompilationWarning   `json:"warnings,omitempty"`
+	Success    bool                 `json:"success"`
+	BinaryPath string               `json:"binary_path,omitempty"`
+	BinaryHash string               `json:"binary_hash,omitempty"`
+	Size       CompilationSize      `json:"size,omitempty"`
+	Duration   time.Duration        `json:"duration"`
+	CacheHit   bool                 `json:"cache_hit"`
+	Metadata   CompilationMetadata  `json:"metadata"`
+	Errors     []CompilationError   `json:"errors,omitempty"`
+	Warnings   []CompilationWarning `json:"warnings,omitempty"`
 }
 
 // CompilationSize represents binary size information
@@ -93,7 +93,7 @@ type CompilationWarning struct {
 // CompileTemplate compiles an Arduino template with parameters
 func (c *Compiler) CompileTemplate(ctx context.Context, request *CompilationRequest) (*CompilationResult, error) {
 	startTime := time.Now()
-	
+
 	result := &CompilationResult{
 		Success:  false,
 		Duration: 0,
@@ -111,7 +111,7 @@ func (c *Compiler) CompileTemplate(ctx context.Context, request *CompilationRequ
 
 	// Generate cache key
 	cacheKey := c.generateCacheKey(request)
-	
+
 	// Check cache if enabled
 	if c.enableCache {
 		if cachedResult, found := c.checkCache(cacheKey); found {
@@ -186,7 +186,7 @@ func (c *Compiler) CompileTemplate(ctx context.Context, request *CompilationRequ
 // createProjectDirectory creates a temporary project directory
 func (c *Compiler) createProjectDirectory(request *CompilationRequest) (string, error) {
 	projectDir := filepath.Join(c.workspaceDir, "compile_"+request.TemplateID+"_"+fmt.Sprintf("%d", time.Now().UnixNano()))
-	
+
 	if err := os.MkdirAll(projectDir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create project directory: %w", err)
 	}
@@ -244,7 +244,7 @@ func (c *Compiler) renderTemplate(templateCode string, parameters map[string]int
 			}
 		},
 	}).Parse(templateCode)
-	
+
 	if err != nil {
 		return "", fmt.Errorf("failed to parse template: %w", err)
 	}
@@ -283,7 +283,7 @@ func (c *Compiler) compileSketch(ctx context.Context, projectDir, board string) 
 
 	output, err := c.cli.ExecuteCommand(ctx, args...)
 	outputStr := string(output)
-	
+
 	if err != nil {
 		return "", outputStr, fmt.Errorf("compilation failed: %w", err)
 	}
@@ -301,14 +301,14 @@ func (c *Compiler) compileSketch(ctx context.Context, projectDir, board string) 
 func (c *Compiler) findCompiledBinary(buildDir, board string) (string, error) {
 	// Common binary extensions for different platforms
 	extensions := []string{".hex", ".bin", ".elf"}
-	
+
 	for _, ext := range extensions {
 		pattern := filepath.Join(buildDir, "*"+ext)
 		matches, err := filepath.Glob(pattern)
 		if err != nil {
 			continue
 		}
-		
+
 		if len(matches) > 0 {
 			return matches[0], nil
 		}
@@ -349,7 +349,7 @@ func (c *Compiler) analyzeBinary(binaryPath string) (string, CompilationSize, er
 // parseCompilationOutput parses compilation output for errors and warnings
 func (c *Compiler) parseCompilationOutput(output string, result *CompilationResult) {
 	lines := strings.Split(output, "\n")
-	
+
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
@@ -374,16 +374,16 @@ func (c *Compiler) parseCompilationOutput(output string, result *CompilationResu
 // generateCacheKey generates a cache key for the compilation request
 func (c *Compiler) generateCacheKey(request *CompilationRequest) string {
 	hasher := sha256.New()
-	
+
 	// Include template code, parameters, board, and libraries in hash
 	hasher.Write([]byte(request.TemplateCode))
 	hasher.Write([]byte(request.Board))
-	
+
 	// Hash parameters (excluding secrets for security)
 	for k, v := range request.Parameters {
 		hasher.Write([]byte(fmt.Sprintf("%s:%v", k, v)))
 	}
-	
+
 	// Hash libraries
 	for _, lib := range request.Libraries {
 		hasher.Write([]byte(fmt.Sprintf("%s:%s", lib.Name, lib.Version)))
@@ -397,7 +397,7 @@ func (c *Compiler) checkCache(cacheKey string) (*CompilationResult, bool) {
 	// Simple file-based cache implementation
 	// In practice, this would use Redis or another cache store
 	cachePath := filepath.Join(c.cacheDir, cacheKey+".json")
-	
+
 	if _, err := os.Stat(cachePath); os.IsNotExist(err) {
 		return nil, false
 	}

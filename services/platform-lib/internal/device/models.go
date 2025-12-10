@@ -49,14 +49,14 @@ type DeviceEntity struct {
 
 // DeviceFilters represents filters for device queries
 type DeviceFilters struct {
-	Status          DeviceStatus `json:"status,omitempty"`
-	BoardType       string       `json:"board_type,omitempty"`
-	TemplateID      string       `json:"template_id,omitempty"`
-	OTAChannel      string       `json:"ota_channel,omitempty"`
-	LastSeenBefore  *time.Time   `json:"last_seen_before,omitempty"`
-	LastSeenAfter   *time.Time   `json:"last_seen_after,omitempty"`
-	Limit           int          `json:"limit,omitempty"`
-	Offset          int          `json:"offset,omitempty"`
+	Status         DeviceStatus `json:"status,omitempty"`
+	BoardType      string       `json:"board_type,omitempty"`
+	TemplateID     string       `json:"template_id,omitempty"`
+	OTAChannel     string       `json:"ota_channel,omitempty"`
+	LastSeenBefore *time.Time   `json:"last_seen_before,omitempty"`
+	LastSeenAfter  *time.Time   `json:"last_seen_after,omitempty"`
+	Limit          int          `json:"limit,omitempty"`
+	Offset         int          `json:"offset,omitempty"`
 }
 
 // DeviceRegistrationRequest represents a request to register a new device
@@ -171,7 +171,7 @@ func (d *Device) ToRegistrationRequest() *DeviceRegistrationRequest {
 // FromRegistrationRequest creates a Device from a DeviceRegistrationRequest
 func FromRegistrationRequest(req *DeviceRegistrationRequest) *Device {
 	now := time.Now()
-	
+
 	otaChannel := req.OTAChannel
 	if otaChannel == "" {
 		otaChannel = "stable"

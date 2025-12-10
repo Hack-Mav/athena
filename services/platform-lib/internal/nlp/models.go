@@ -16,29 +16,29 @@ type ParsedRequirements struct {
 
 // SensorSpec represents a sensor specification
 type SensorSpec struct {
-	Type        string                 `json:"type"`         // e.g., "temperature", "humidity", "distance"
-	Model       string                 `json:"model"`        // e.g., "DHT22", "HC-SR04"
-	Pin         string                 `json:"pin"`          // e.g., "D2", "A0"
-	SampleRate  int                    `json:"sample_rate"`  // milliseconds
-	Threshold   *ThresholdSpec         `json:"threshold,omitempty"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	Type       string                 `json:"type"`        // e.g., "temperature", "humidity", "distance"
+	Model      string                 `json:"model"`       // e.g., "DHT22", "HC-SR04"
+	Pin        string                 `json:"pin"`         // e.g., "D2", "A0"
+	SampleRate int                    `json:"sample_rate"` // milliseconds
+	Threshold  *ThresholdSpec         `json:"threshold,omitempty"`
+	Metadata   map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // ActuatorSpec represents an actuator specification
 type ActuatorSpec struct {
-	Type        string                 `json:"type"`         // e.g., "led", "servo", "relay", "motor"
-	Pin         string                 `json:"pin"`          // e.g., "D3", "D4"
-	InitialState string                `json:"initial_state"` // e.g., "off", "0", "closed"
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	Type         string                 `json:"type"`          // e.g., "led", "servo", "relay", "motor"
+	Pin          string                 `json:"pin"`           // e.g., "D3", "D4"
+	InitialState string                 `json:"initial_state"` // e.g., "off", "0", "closed"
+	Metadata     map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // CommSpec represents a communication specification
 type CommSpec struct {
-	Protocol    string                 `json:"protocol"`     // e.g., "wifi", "mqtt", "bluetooth", "http"
-	Endpoint    string                 `json:"endpoint,omitempty"`
-	Port        int                    `json:"port,omitempty"`
-	Topic       string                 `json:"topic,omitempty"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	Protocol string                 `json:"protocol"` // e.g., "wifi", "mqtt", "bluetooth", "http"
+	Endpoint string                 `json:"endpoint,omitempty"`
+	Port     int                    `json:"port,omitempty"`
+	Topic    string                 `json:"topic,omitempty"`
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // ThresholdSpec represents a threshold specification for sensors
@@ -113,31 +113,31 @@ type BOMItem struct {
 
 // SafetyValidation represents electrical safety validation results
 type SafetyValidation struct {
-	Valid            bool                   `json:"valid"`
-	Errors           []string               `json:"errors,omitempty"`
-	Warnings         []string               `json:"warnings,omitempty"`
-	VoltageChecks    []VoltageCheck         `json:"voltage_checks"`
-	CurrentChecks    []CurrentCheck         `json:"current_checks"`
+	Valid            bool                    `json:"valid"`
+	Errors           []string                `json:"errors,omitempty"`
+	Warnings         []string                `json:"warnings,omitempty"`
+	VoltageChecks    []VoltageCheck          `json:"voltage_checks"`
+	CurrentChecks    []CurrentCheck          `json:"current_checks"`
 	PinCompatibility []PinCompatibilityCheck `json:"pin_compatibility"`
 }
 
 // VoltageCheck represents a voltage compatibility check
 type VoltageCheck struct {
-	Component      string  `json:"component"`
-	RequiredVoltage string  `json:"required_voltage"`
-	SuppliedVoltage string  `json:"supplied_voltage"`
-	Compatible     bool    `json:"compatible"`
-	Message        string  `json:"message,omitempty"`
+	Component       string `json:"component"`
+	RequiredVoltage string `json:"required_voltage"`
+	SuppliedVoltage string `json:"supplied_voltage"`
+	Compatible      bool   `json:"compatible"`
+	Message         string `json:"message,omitempty"`
 }
 
 // CurrentCheck represents a current limit check
 type CurrentCheck struct {
-	Pin            string  `json:"pin"`
-	Component      string  `json:"component"`
+	Pin             string  `json:"pin"`
+	Component       string  `json:"component"`
 	RequiredCurrent float64 `json:"required_current"` // in mA
-	MaxCurrent     float64 `json:"max_current"`      // in mA
-	Safe           bool    `json:"safe"`
-	Message        string  `json:"message,omitempty"`
+	MaxCurrent      float64 `json:"max_current"`      // in mA
+	Safe            bool    `json:"safe"`
+	Message         string  `json:"message,omitempty"`
 }
 
 // PinCompatibilityCheck represents a pin compatibility check

@@ -2,14 +2,15 @@ package main
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"cloud.google.com/go/datastore"
 	"github.com/athena/platform-lib/pkg/config"
+	"github.com/athena/platform-lib/pkg/errors"
 	"github.com/athena/platform-lib/pkg/logger"
 	"github.com/athena/platform-lib/pkg/template"
 	"github.com/gin-gonic/gin"
@@ -19,18 +20,25 @@ func main() {
 	// Load configuration
 	cfg, err := config.Load("template-service")
 	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+		errors.HandleConfigError("Failed to load configuration", err)
 	}
 
 	// Initialize logger
 	logger := logger.New(cfg.LogLevel, cfg.ServiceName)
 
-	// Initialize service with memory repository for now
-	// TODO: Implement proper repository with database
-	repo := template.NewMemoryRepository()
+	// Initialize Datastore client
+	ctx := context.Background()
+	datastoreClient, err := datastore.NewClient(ctx, cfg.DatastoreProject)
+	if err != nil {
+		errors.HandleDBError("Failed to create Datastore client", err)
+	}
+	defer datastoreClient.Close()
+
+	// Initialize service with Datastore repository
+	repo := template.NewDatastoreRepository(datastoreClient)
 	service, err := template.NewService(cfg, logger, repo)
 	if err != nil {
-		logger.Fatalf("Failed to initialize template service: %v", err)
+		errors.HandleServiceError("Failed to initialize template service", err)
 	}
 
 	// Setup HTTP server
@@ -49,7 +57,7 @@ func main() {
 	go func() {
 		logger.Infof("Template service starting on %s", cfg.HTTPPort)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Fatalf("Failed to start server: %v", err)
+			errors.HandleNetworkError("Failed to start server", err)
 		}
 	}()
 
@@ -65,7 +73,7 @@ func main() {
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		logger.Fatalf("Server forced to shutdown: %v", err)
+		logger.Error("Server forced to shutdown", "error", err)
 	}
 
 	logger.Info("Server exited")

@@ -25,10 +25,10 @@ type TelemetryEntity struct {
 
 // MetricPoint represents a single metric data point
 type MetricPoint struct {
-	Timestamp    time.Time              `json:"timestamp"`
-	MetricName   string                 `json:"metric_name"`
-	MetricValue  interface{}            `json:"metric_value"`
-	Tags         map[string]string      `json:"tags"`
+	Timestamp   time.Time         `json:"timestamp"`
+	MetricName  string            `json:"metric_name"`
+	MetricValue interface{}       `json:"metric_value"`
+	Tags        map[string]string `json:"tags"`
 }
 
 // TimeRange represents a time range for queries
@@ -39,30 +39,30 @@ type TimeRange struct {
 
 // AlertThreshold represents a threshold configuration for alerts
 type AlertThreshold struct {
-	MetricName    string                 `json:"metric_name"`
-	Operator      string                 `json:"operator"` // "gt", "lt", "eq", "gte", "lte"
-	Value         float64                `json:"value"`
-	Duration      time.Duration          `json:"duration"`
-	Severity      string                 `json:"severity"` // "info", "warning", "critical"
-	Enabled       bool                   `json:"enabled"`
-	Metadata      map[string]interface{} `json:"metadata,omitempty"`
+	MetricName string                 `json:"metric_name"`
+	Operator   string                 `json:"operator"` // "gt", "lt", "eq", "gte", "lte"
+	Value      float64                `json:"value"`
+	Duration   time.Duration          `json:"duration"`
+	Severity   string                 `json:"severity"` // "info", "warning", "critical"
+	Enabled    bool                   `json:"enabled"`
+	Metadata   map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // Alert represents a triggered alert
 type Alert struct {
-	AlertID       string                 `json:"alert_id"`
-	DeviceID      string                 `json:"device_id"`
-	ThresholdID   string                 `json:"threshold_id"`
-	MetricName    string                 `json:"metric_name"`
-	CurrentValue  float64                `json:"current_value"`
-	ThresholdValue float64               `json:"threshold_value"`
-	Severity      string                 `json:"severity"`
-	Message       string                 `json:"message"`
-	TriggeredAt   time.Time              `json:"triggered_at"`
-	AcknowledgedAt *time.Time            `json:"acknowledged_at,omitempty"`
-	ResolvedAt    *time.Time             `json:"resolved_at,omitempty"`
-	Status        string                 `json:"status"` // "active", "acknowledged", "resolved"
-	Metadata      map[string]interface{} `json:"metadata,omitempty"`
+	AlertID        string                 `json:"alert_id"`
+	DeviceID       string                 `json:"device_id"`
+	ThresholdID    string                 `json:"threshold_id"`
+	MetricName     string                 `json:"metric_name"`
+	CurrentValue   float64                `json:"current_value"`
+	ThresholdValue float64                `json:"threshold_value"`
+	Severity       string                 `json:"severity"`
+	Message        string                 `json:"message"`
+	TriggeredAt    time.Time              `json:"triggered_at"`
+	AcknowledgedAt *time.Time             `json:"acknowledged_at,omitempty"`
+	ResolvedAt     *time.Time             `json:"resolved_at,omitempty"`
+	Status         string                 `json:"status"` // "active", "acknowledged", "resolved"
+	Metadata       map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // AlertEntity represents the Datastore entity for alerts
@@ -84,15 +84,15 @@ type AlertEntity struct {
 
 // ThresholdEntity represents the Datastore entity for alert thresholds
 type ThresholdEntity struct {
-	ThresholdID   string `datastore:"threshold_id"`
-	DeviceID      string `datastore:"device_id"`
-	MetricName    string `datastore:"metric_name"`
-	Operator      string `datastore:"operator"`
-	Value         float64 `datastore:"value"`
-	DurationNanos int64  `datastore:"duration_nanos"`
-	Severity      string `datastore:"severity"`
-	Enabled       bool   `datastore:"enabled"`
-	MetadataJSON  string `datastore:"metadata_json,noindex"`
+	ThresholdID   string    `datastore:"threshold_id"`
+	DeviceID      string    `datastore:"device_id"`
+	MetricName    string    `datastore:"metric_name"`
+	Operator      string    `datastore:"operator"`
+	Value         float64   `datastore:"value"`
+	DurationNanos int64     `datastore:"duration_nanos"`
+	Severity      string    `datastore:"severity"`
+	Enabled       bool      `datastore:"enabled"`
+	MetadataJSON  string    `datastore:"metadata_json,noindex"`
 	CreatedAt     time.Time `datastore:"created_at"`
 	UpdatedAt     time.Time `datastore:"updated_at"`
 }
@@ -131,7 +131,7 @@ func (td *TelemetryData) ToEntities() ([]*TelemetryEntity, error) {
 	}
 
 	entities := make([]*TelemetryEntity, 0, len(td.Metrics))
-	
+
 	for metricName, metricValue := range td.Metrics {
 		entity := &TelemetryEntity{
 			DeviceID:   td.DeviceID,
@@ -191,10 +191,10 @@ func (te *TelemetryEntity) FromEntity() (*MetricPoint, error) {
 	}
 
 	return &MetricPoint{
-		Timestamp:  te.Timestamp,
-		MetricName: te.MetricName,
+		Timestamp:   te.Timestamp,
+		MetricName:  te.MetricName,
 		MetricValue: metricValue,
-		Tags:       tags,
+		Tags:        tags,
 	}, nil
 }
 

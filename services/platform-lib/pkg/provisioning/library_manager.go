@@ -11,22 +11,22 @@ import (
 
 // LibraryManager manages Arduino library dependencies
 type LibraryManager struct {
-	cli                *ArduinoCLI
-	installedCache     map[string]Library
-	availableCache     map[string][]Library
-	cacheMutex         sync.RWMutex
-	installedExpiry    time.Time
-	availableExpiry    time.Time
-	cacheDuration      time.Duration
+	cli             *ArduinoCLI
+	installedCache  map[string]Library
+	availableCache  map[string][]Library
+	cacheMutex      sync.RWMutex
+	installedExpiry time.Time
+	availableExpiry time.Time
+	cacheDuration   time.Duration
 }
 
 // NewLibraryManager creates a new library manager
 func NewLibraryManager(cli *ArduinoCLI) *LibraryManager {
 	return &LibraryManager{
-		cli:             cli,
-		installedCache:  make(map[string]Library),
-		availableCache:  make(map[string][]Library),
-		cacheDuration:   15 * time.Minute,
+		cli:            cli,
+		installedCache: make(map[string]Library),
+		availableCache: make(map[string][]Library),
+		cacheDuration:  15 * time.Minute,
 	}
 }
 
@@ -53,9 +53,9 @@ type DependencyConflict struct {
 
 // InstallationResult represents the result of library installation
 type InstallationResult struct {
-	Installed []Library `json:"installed"`
+	Installed []Library                  `json:"installed"`
 	Failed    []LibraryInstallationError `json:"failed"`
-	Skipped   []Library `json:"skipped"`
+	Skipped   []Library                  `json:"skipped"`
 }
 
 // LibraryInstallationError represents a library installation error
@@ -86,11 +86,11 @@ func (lm *LibraryManager) ResolveDependencies(ctx context.Context, required []Li
 
 	// Track version requirements for conflict detection
 	versionRequirements := make(map[string][]string)
-	
+
 	// Process each required library
 	for _, req := range required {
 		versionRequirements[req.Name] = append(versionRequirements[req.Name], req.Version)
-		
+
 		if installed, exists := installedMap[req.Name]; exists {
 			// Check if installed version satisfies requirement
 			if lm.versionSatisfies(installed.Version, req.Version) {
@@ -256,7 +256,7 @@ func (lm *LibraryManager) ValidateLibraryCompatibility(libraries []Library, boar
 		if len(lib.Architectures) > 0 {
 			compatible := false
 			boardArch := lm.getBoardArchitecture(board.FQBN)
-			
+
 			for _, arch := range lib.Architectures {
 				if arch == "*" || arch == boardArch {
 					compatible = true
@@ -391,7 +391,7 @@ func (lm *LibraryManager) versionSatisfies(installed, required string) bool {
 	if required == "" || required == "latest" {
 		return true
 	}
-	
+
 	// Simple version comparison - in practice, this would use semantic versioning
 	return installed == required || lm.compareVersions(installed, required) >= 0
 }
@@ -422,14 +422,14 @@ func (lm *LibraryManager) getBoardArchitecture(fqbn string) string {
 func (lm *LibraryManager) uniqueStrings(strings []string) []string {
 	keys := make(map[string]bool)
 	var unique []string
-	
+
 	for _, str := range strings {
 		if !keys[str] {
 			keys[str] = true
 			unique = append(unique, str)
 		}
 	}
-	
+
 	return unique
 }
 

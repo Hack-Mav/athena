@@ -56,7 +56,7 @@ func (r *DatastoreRepository) StoreTelemetryBatch(ctx context.Context, batch []*
 		for _, entity := range entities {
 			keyName := fmt.Sprintf("%s#%d#%s", entity.DeviceID, entity.Timestamp.UnixNano(), entity.MetricName)
 			key := datastore.NameKey("Telemetry", keyName, nil)
-			
+
 			allKeys = append(allKeys, key)
 			allEntities = append(allEntities, entity)
 		}
@@ -255,7 +255,7 @@ func (r *DatastoreRepository) aggregateValues(metrics []*MetricPoint, aggType Ag
 // CreateThreshold creates a new alert threshold
 func (r *DatastoreRepository) CreateThreshold(ctx context.Context, deviceID string, threshold *AlertThreshold) (string, error) {
 	thresholdID := uuid.New().String()
-	
+
 	metadataJSON := "{}"
 	if threshold.Metadata != nil {
 		// Marshal metadata if present
@@ -288,7 +288,7 @@ func (r *DatastoreRepository) CreateThreshold(ctx context.Context, deviceID stri
 func (r *DatastoreRepository) GetThreshold(ctx context.Context, thresholdID string) (*AlertThreshold, error) {
 	key := datastore.NameKey("Threshold", thresholdID, nil)
 	var entity ThresholdEntity
-	
+
 	if err := r.client.Get(ctx, key, &entity); err != nil {
 		if err == datastore.ErrNoSuchEntity {
 			return nil, fmt.Errorf("threshold not found")
@@ -335,7 +335,7 @@ func (r *DatastoreRepository) ListThresholds(ctx context.Context, deviceID strin
 func (r *DatastoreRepository) UpdateThreshold(ctx context.Context, thresholdID string, threshold *AlertThreshold) error {
 	key := datastore.NameKey("Threshold", thresholdID, nil)
 	var entity ThresholdEntity
-	
+
 	if err := r.client.Get(ctx, key, &entity); err != nil {
 		return fmt.Errorf("failed to get threshold: %w", err)
 	}
@@ -383,7 +383,7 @@ func (r *DatastoreRepository) CreateAlert(ctx context.Context, alert *Alert) err
 func (r *DatastoreRepository) GetAlert(ctx context.Context, alertID string) (*Alert, error) {
 	key := datastore.NameKey("Alert", alertID, nil)
 	var entity AlertEntity
-	
+
 	if err := r.client.Get(ctx, key, &entity); err != nil {
 		if err == datastore.ErrNoSuchEntity {
 			return nil, fmt.Errorf("alert not found")
@@ -425,7 +425,7 @@ func (r *DatastoreRepository) ListAlerts(ctx context.Context, deviceID string, s
 func (r *DatastoreRepository) AcknowledgeAlert(ctx context.Context, alertID string) error {
 	key := datastore.NameKey("Alert", alertID, nil)
 	var entity AlertEntity
-	
+
 	if err := r.client.Get(ctx, key, &entity); err != nil {
 		return fmt.Errorf("failed to get alert: %w", err)
 	}
@@ -445,7 +445,7 @@ func (r *DatastoreRepository) AcknowledgeAlert(ctx context.Context, alertID stri
 func (r *DatastoreRepository) ResolveAlert(ctx context.Context, alertID string) error {
 	key := datastore.NameKey("Alert", alertID, nil)
 	var entity AlertEntity
-	
+
 	if err := r.client.Get(ctx, key, &entity); err != nil {
 		return fmt.Errorf("failed to get alert: %w", err)
 	}

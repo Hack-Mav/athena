@@ -27,7 +27,7 @@ func TestDeviceStatus(t *testing.T) {
 			// Test string conversion
 			statusStr := string(tt.status)
 			assert.NotEmpty(t, statusStr)
-			
+
 			// Test conversion back
 			converted := DeviceStatus(statusStr)
 			assert.Equal(t, tt.status, converted)

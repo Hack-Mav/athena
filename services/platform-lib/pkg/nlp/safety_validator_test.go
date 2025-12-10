@@ -120,9 +120,9 @@ func TestSafetyValidator_EstimateComponentCurrent(t *testing.T) {
 
 func TestSafetyValidator_GetComponentVoltageRequirement(t *testing.T) {
 	tests := []struct {
-		name     string
+		name      string
 		component Component
-		expected string
+		expected  string
 	}{
 		{
 			name: "Explicit 5V",

@@ -30,53 +30,53 @@ func NewFlasher(cli *ArduinoCLI) *Flasher {
 
 // FlashRequest represents a flash request
 type FlashRequest struct {
-	Port         string `json:"port" binding:"required"`
-	Board        string `json:"board" binding:"required"`
-	BinaryPath   string `json:"binary_path,omitempty"`
-	ArtifactID   string `json:"artifact_id,omitempty"`
-	VerifyFlash  bool   `json:"verify_flash"`
-	HealthCheck  bool   `json:"health_check"`
+	Port        string `json:"port" binding:"required"`
+	Board       string `json:"board" binding:"required"`
+	BinaryPath  string `json:"binary_path,omitempty"`
+	ArtifactID  string `json:"artifact_id,omitempty"`
+	VerifyFlash bool   `json:"verify_flash"`
+	HealthCheck bool   `json:"health_check"`
 }
 
 // FlashResult represents the result of a flash operation
 type FlashResult struct {
-	Success       bool                   `json:"success"`
-	Port          string                 `json:"port"`
-	Board         string                 `json:"board"`
-	Duration      time.Duration          `json:"duration"`
-	FlashOutput   string                 `json:"flash_output,omitempty"`
-	VerifyResult  *VerificationResult    `json:"verify_result,omitempty"`
-	HealthCheck   *HealthCheckResult     `json:"health_check,omitempty"`
-	Errors        []FlashError           `json:"errors,omitempty"`
+	Success      bool                `json:"success"`
+	Port         string              `json:"port"`
+	Board        string              `json:"board"`
+	Duration     time.Duration       `json:"duration"`
+	FlashOutput  string              `json:"flash_output,omitempty"`
+	VerifyResult *VerificationResult `json:"verify_result,omitempty"`
+	HealthCheck  *HealthCheckResult  `json:"health_check,omitempty"`
+	Errors       []FlashError        `json:"errors,omitempty"`
 }
 
 // VerificationResult represents flash verification result
 type VerificationResult struct {
-	Success     bool   `json:"success"`
-	BytesRead   int    `json:"bytes_read"`
-	BytesTotal  int    `json:"bytes_total"`
-	Checksum    string `json:"checksum,omitempty"`
-	Error       string `json:"error,omitempty"`
+	Success    bool   `json:"success"`
+	BytesRead  int    `json:"bytes_read"`
+	BytesTotal int    `json:"bytes_total"`
+	Checksum   string `json:"checksum,omitempty"`
+	Error      string `json:"error,omitempty"`
 }
 
 // HealthCheckResult represents device health check result
 type HealthCheckResult struct {
-	Success       bool                   `json:"success"`
-	DeviceInfo    DeviceInfo             `json:"device_info,omitempty"`
-	SerialOutput  string                 `json:"serial_output,omitempty"`
-	ResponseTime  time.Duration          `json:"response_time"`
-	Tests         []HealthTest           `json:"tests,omitempty"`
-	Error         string                 `json:"error,omitempty"`
+	Success      bool          `json:"success"`
+	DeviceInfo   DeviceInfo    `json:"device_info,omitempty"`
+	SerialOutput string        `json:"serial_output,omitempty"`
+	ResponseTime time.Duration `json:"response_time"`
+	Tests        []HealthTest  `json:"tests,omitempty"`
+	Error        string        `json:"error,omitempty"`
 }
 
 // DeviceInfo represents device information
 type DeviceInfo struct {
-	BoardType     string            `json:"board_type"`
-	FirmwareHash  string            `json:"firmware_hash,omitempty"`
-	Version       string            `json:"version,omitempty"`
-	Uptime        time.Duration     `json:"uptime,omitempty"`
-	FreeMemory    int               `json:"free_memory,omitempty"`
-	Properties    map[string]string `json:"properties,omitempty"`
+	BoardType    string            `json:"board_type"`
+	FirmwareHash string            `json:"firmware_hash,omitempty"`
+	Version      string            `json:"version,omitempty"`
+	Uptime       time.Duration     `json:"uptime,omitempty"`
+	FreeMemory   int               `json:"free_memory,omitempty"`
+	Properties   map[string]string `json:"properties,omitempty"`
 }
 
 // HealthTest represents an individual health test
@@ -97,17 +97,17 @@ type FlashError struct {
 
 // FlashProgress represents flash progress information
 type FlashProgress struct {
-	Stage       string  `json:"stage"`
-	Progress    float64 `json:"progress"`
-	Message     string  `json:"message"`
-	BytesTotal  int     `json:"bytes_total,omitempty"`
-	BytesFlashed int    `json:"bytes_flashed,omitempty"`
+	Stage        string  `json:"stage"`
+	Progress     float64 `json:"progress"`
+	Message      string  `json:"message"`
+	BytesTotal   int     `json:"bytes_total,omitempty"`
+	BytesFlashed int     `json:"bytes_flashed,omitempty"`
 }
 
 // FlashDevice flashes firmware to a device
 func (f *Flasher) FlashDevice(ctx context.Context, request *FlashRequest, progressCallback func(FlashProgress)) (*FlashResult, error) {
 	startTime := time.Now()
-	
+
 	result := &FlashResult{
 		Success:  false,
 		Port:     request.Port,
@@ -162,7 +162,7 @@ func (f *Flasher) FlashDevice(ctx context.Context, request *FlashRequest, progre
 
 	flashOutput, err := f.flashFirmware(ctx, request.Port, request.Board, binaryPath, progressCallback)
 	result.FlashOutput = flashOutput
-	
+
 	if err != nil {
 		result.Errors = append(result.Errors, FlashError{
 			Type:    "flash_failed",
@@ -184,7 +184,7 @@ func (f *Flasher) FlashDevice(ctx context.Context, request *FlashRequest, progre
 
 		verifyResult, err := f.verifyFlash(ctx, request.Port, request.Board, binaryPath)
 		result.VerifyResult = verifyResult
-		
+
 		if err != nil {
 			result.Errors = append(result.Errors, FlashError{
 				Type:    "verify_failed",
@@ -208,7 +208,7 @@ func (f *Flasher) FlashDevice(ctx context.Context, request *FlashRequest, progre
 
 		healthResult, err := f.performHealthCheck(ctx, request.Port)
 		result.HealthCheck = healthResult
-		
+
 		if err != nil {
 			result.Errors = append(result.Errors, FlashError{
 				Type:    "health_check_failed",
@@ -255,7 +255,7 @@ func (f *Flasher) validatePort(portName string) error {
 				return fmt.Errorf("port %s exists but is not accessible: %w", portName, err)
 			}
 			serialPort.Close()
-			
+
 			return nil
 		}
 	}
@@ -280,13 +280,13 @@ func (f *Flasher) flashFirmware(ctx context.Context, port, board, binaryPath str
 
 	// Execute flash command
 	cmd := exec.CommandContext(ctx, f.cli.cliPath, args...)
-	
+
 	// Capture both stdout and stderr
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return "", fmt.Errorf("failed to create stdout pipe: %w", err)
 	}
-	
+
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return "", fmt.Errorf("failed to create stderr pipe: %w", err)
@@ -299,7 +299,7 @@ func (f *Flasher) flashFirmware(ctx context.Context, port, board, binaryPath str
 	// Read output and parse progress
 	var output strings.Builder
 	outputChan := make(chan string, 100)
-	
+
 	// Read stdout
 	go func() {
 		scanner := bufio.NewScanner(stdout)
@@ -336,7 +336,7 @@ func (f *Flasher) flashFirmware(ctx context.Context, port, board, binaryPath str
 // parseFlashProgress parses flash output for progress information
 func (f *Flasher) parseFlashProgress(outputChan <-chan string, progressCallback func(FlashProgress)) {
 	progressRegex := regexp.MustCompile(`(\d+)%`)
-	
+
 	for line := range outputChan {
 		// Look for percentage indicators
 		if matches := progressRegex.FindStringSubmatch(line); len(matches) > 1 {
@@ -360,21 +360,21 @@ func (f *Flasher) verifyFlash(ctx context.Context, port, board, binaryPath strin
 
 	// For now, we'll use a simple approach - Arduino CLI upload with --verify flag
 	// In a full implementation, this would read back the flash memory and compare
-	
+
 	// The flash command already includes verification, so if we got here, it likely succeeded
 	// This is a placeholder for more sophisticated verification
-	
+
 	result.Success = true
 	result.BytesRead = 32768  // Placeholder
 	result.BytesTotal = 32768 // Placeholder
-	
+
 	return result, nil
 }
 
 // performHealthCheck performs a health check on the flashed device
 func (f *Flasher) performHealthCheck(ctx context.Context, portName string) (*HealthCheckResult, error) {
 	startTime := time.Now()
-	
+
 	result := &HealthCheckResult{
 		Success:      false,
 		ResponseTime: 0,
@@ -435,7 +435,7 @@ func (f *Flasher) testBasicCommunication(port serial.Port) HealthTest {
 		Name:    "Basic Communication",
 		Success: false,
 	}
-	
+
 	startTime := time.Now()
 	defer func() {
 		test.Duration = time.Since(startTime)
@@ -473,7 +473,7 @@ func (f *Flasher) testDeviceInfo(port serial.Port) (HealthTest, *DeviceInfo) {
 		Name:    "Device Info",
 		Success: false,
 	}
-	
+
 	startTime := time.Now()
 	defer func() {
 		test.Duration = time.Since(startTime)
@@ -529,7 +529,7 @@ func (f *Flasher) testMemoryCheck(port serial.Port) HealthTest {
 		Name:    "Memory Check",
 		Success: false,
 	}
-	
+
 	startTime := time.Now()
 	defer func() {
 		test.Duration = time.Since(startTime)

@@ -146,7 +146,7 @@ func (pf *ParameterFiller) fillCommunicationParameters(requirements *ParsedRequi
 		case "wifi":
 			// WiFi parameters will be filled from secrets
 			parameters["wifi_enabled"] = true
-			
+
 		case "mqtt":
 			if comm.Endpoint != "" {
 				parameters["mqtt_server"] = comm.Endpoint
@@ -159,7 +159,7 @@ func (pf *ParameterFiller) fillCommunicationParameters(requirements *ParsedRequi
 			if comm.Topic != "" {
 				parameters["mqtt_topic"] = comm.Topic
 			}
-			
+
 		case "http", "https":
 			if comm.Endpoint != "" {
 				parameters["http_endpoint"] = comm.Endpoint
@@ -167,7 +167,7 @@ func (pf *ParameterFiller) fillCommunicationParameters(requirements *ParsedRequi
 			if comm.Port > 0 {
 				parameters["http_port"] = comm.Port
 			}
-			
+
 		case "bluetooth", "ble":
 			parameters["bluetooth_enabled"] = true
 		}
@@ -357,28 +357,28 @@ func (pf *ParameterFiller) ValidateParameters(ctx context.Context, parameters ma
 func (pf *ParameterFiller) normalizePinName(pin string) string {
 	pin = strings.TrimSpace(pin)
 	pin = strings.ToUpper(pin)
-	
+
 	// Remove common prefixes
 	pin = strings.TrimPrefix(pin, "PIN")
 	pin = strings.TrimSpace(pin)
-	
+
 	return pin
 }
 
 func (pf *ParameterFiller) isValidPin(pin string, boardType string) bool {
 	// Simplified validation - in production, this would check against board specifications
 	pin = strings.ToUpper(pin)
-	
+
 	// Common Arduino pins
 	if strings.HasPrefix(pin, "D") || strings.HasPrefix(pin, "A") {
 		return true
 	}
-	
+
 	// Numeric pins
 	if len(pin) > 0 && pin[0] >= '0' && pin[0] <= '9' {
 		return true
 	}
-	
+
 	return false
 }
 
@@ -386,7 +386,7 @@ func (pf *ParameterFiller) formatSensors(sensors []SensorSpec) string {
 	if len(sensors) == 0 {
 		return "none"
 	}
-	
+
 	var parts []string
 	for _, s := range sensors {
 		if s.Model != "" {
@@ -402,7 +402,7 @@ func (pf *ParameterFiller) formatActuators(actuators []ActuatorSpec) string {
 	if len(actuators) == 0 {
 		return "none"
 	}
-	
+
 	var parts []string
 	for _, a := range actuators {
 		parts = append(parts, a.Type)
@@ -414,7 +414,7 @@ func (pf *ParameterFiller) formatCommunication(comms []CommSpec) string {
 	if len(comms) == 0 {
 		return "none"
 	}
-	
+
 	var parts []string
 	for _, c := range comms {
 		parts = append(parts, c.Protocol)

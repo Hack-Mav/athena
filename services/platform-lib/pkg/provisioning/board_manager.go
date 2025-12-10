@@ -34,8 +34,8 @@ type BoardCompatibility struct {
 
 // PinAssignment represents a pin assignment
 type PinAssignment struct {
-	Pin      int    `json:"pin"`
-	Function string `json:"function"`
+	Pin       int    `json:"pin"`
+	Function  string `json:"function"`
 	Component string `json:"component"`
 }
 
@@ -69,7 +69,7 @@ func (bm *BoardManager) GetBoard(ctx context.Context, fqbn string) (*Board, erro
 
 	bm.cacheMutex.RLock()
 	defer bm.cacheMutex.RUnlock()
-	
+
 	if board, exists := bm.boardsCache[fqbn]; exists {
 		return &board, nil
 	}
@@ -96,7 +96,7 @@ func (bm *BoardManager) ListBoards(ctx context.Context) ([]Board, error) {
 
 	bm.cacheMutex.RLock()
 	defer bm.cacheMutex.RUnlock()
-	
+
 	boards := make([]Board, 0, len(bm.boardsCache))
 	for _, board := range bm.boardsCache {
 		boards = append(boards, board)
@@ -131,11 +131,11 @@ func (bm *BoardManager) ValidateBoardCompatibility(ctx context.Context, fqbn str
 		if abs(board.Capabilities.Voltage-requirements.Voltage) > 0.5 {
 			compatibility.Compatible = false
 			compatibility.Reasons = append(compatibility.Reasons,
-				fmt.Sprintf("Voltage mismatch: board provides %.1fV, required %.1fV", 
+				fmt.Sprintf("Voltage mismatch: board provides %.1fV, required %.1fV",
 					board.Capabilities.Voltage, requirements.Voltage))
 		} else {
 			compatibility.Warnings = append(compatibility.Warnings,
-				fmt.Sprintf("Minor voltage difference: board provides %.1fV, required %.1fV", 
+				fmt.Sprintf("Minor voltage difference: board provides %.1fV, required %.1fV",
 					board.Capabilities.Voltage, requirements.Voltage))
 		}
 	}
@@ -144,7 +144,7 @@ func (bm *BoardManager) ValidateBoardCompatibility(ctx context.Context, fqbn str
 	if requirements.MaxCurrent > board.Capabilities.MaxCurrent {
 		compatibility.Compatible = false
 		compatibility.Reasons = append(compatibility.Reasons,
-			fmt.Sprintf("Insufficient current capacity: board provides %dmA, required %dmA", 
+			fmt.Sprintf("Insufficient current capacity: board provides %dmA, required %dmA",
 				board.Capabilities.MaxCurrent, requirements.MaxCurrent))
 	}
 
@@ -152,7 +152,7 @@ func (bm *BoardManager) ValidateBoardCompatibility(ctx context.Context, fqbn str
 	if requirements.DigitalPins > len(board.Capabilities.DigitalPins) {
 		compatibility.Compatible = false
 		compatibility.Reasons = append(compatibility.Reasons,
-			fmt.Sprintf("Insufficient digital pins: board has %d, required %d", 
+			fmt.Sprintf("Insufficient digital pins: board has %d, required %d",
 				len(board.Capabilities.DigitalPins), requirements.DigitalPins))
 	}
 
@@ -160,7 +160,7 @@ func (bm *BoardManager) ValidateBoardCompatibility(ctx context.Context, fqbn str
 	if requirements.AnalogPins > len(board.Capabilities.AnalogPins) {
 		compatibility.Compatible = false
 		compatibility.Reasons = append(compatibility.Reasons,
-			fmt.Sprintf("Insufficient analog pins: board has %d, required %d", 
+			fmt.Sprintf("Insufficient analog pins: board has %d, required %d",
 				len(board.Capabilities.AnalogPins), requirements.AnalogPins))
 	}
 
@@ -168,7 +168,7 @@ func (bm *BoardManager) ValidateBoardCompatibility(ctx context.Context, fqbn str
 	if requirements.PWMPins > len(board.Capabilities.PWMPins) {
 		compatibility.Compatible = false
 		compatibility.Reasons = append(compatibility.Reasons,
-			fmt.Sprintf("Insufficient PWM pins: board has %d, required %d", 
+			fmt.Sprintf("Insufficient PWM pins: board has %d, required %d",
 				len(board.Capabilities.PWMPins), requirements.PWMPins))
 	}
 
@@ -186,7 +186,7 @@ func (bm *BoardManager) ValidateBoardCompatibility(ctx context.Context, fqbn str
 	if requirements.SerialPorts > board.Capabilities.SerialPorts {
 		compatibility.Compatible = false
 		compatibility.Reasons = append(compatibility.Reasons,
-			fmt.Sprintf("Insufficient serial ports: board has %d, required %d", 
+			fmt.Sprintf("Insufficient serial ports: board has %d, required %d",
 				board.Capabilities.SerialPorts, requirements.SerialPorts))
 	}
 
@@ -194,14 +194,14 @@ func (bm *BoardManager) ValidateBoardCompatibility(ctx context.Context, fqbn str
 	if requirements.MinFlashSize > board.Capabilities.FlashSize {
 		compatibility.Compatible = false
 		compatibility.Reasons = append(compatibility.Reasons,
-			fmt.Sprintf("Insufficient flash memory: board has %dKB, required %dKB", 
+			fmt.Sprintf("Insufficient flash memory: board has %dKB, required %dKB",
 				board.Capabilities.FlashSize, requirements.MinFlashSize))
 	}
 
 	if requirements.MinRAMSize > board.Capabilities.RAMSize {
 		compatibility.Compatible = false
 		compatibility.Reasons = append(compatibility.Reasons,
-			fmt.Sprintf("Insufficient RAM: board has %dKB, required %dKB", 
+			fmt.Sprintf("Insufficient RAM: board has %dKB, required %dKB",
 				board.Capabilities.RAMSize, requirements.MinRAMSize))
 	}
 
@@ -296,17 +296,17 @@ func (bm *BoardManager) ValidatePinAssignments(ctx context.Context, fqbn string,
 
 // BoardRequirements represents board requirements for a template
 type BoardRequirements struct {
-	Voltage      float32           `json:"voltage"`
-	MaxCurrent   int               `json:"max_current_ma"`
-	DigitalPins  int               `json:"digital_pins"`
-	AnalogPins   int               `json:"analog_pins"`
-	PWMPins      int               `json:"pwm_pins"`
-	I2C          bool              `json:"i2c"`
-	SPI          bool              `json:"spi"`
-	SerialPorts  int               `json:"serial_ports"`
-	MinFlashSize int               `json:"min_flash_size_kb"`
-	MinRAMSize   int               `json:"min_ram_size_kb"`
-	Features     map[string]bool   `json:"features"`
+	Voltage      float32         `json:"voltage"`
+	MaxCurrent   int             `json:"max_current_ma"`
+	DigitalPins  int             `json:"digital_pins"`
+	AnalogPins   int             `json:"analog_pins"`
+	PWMPins      int             `json:"pwm_pins"`
+	I2C          bool            `json:"i2c"`
+	SPI          bool            `json:"spi"`
+	SerialPorts  int             `json:"serial_ports"`
+	MinFlashSize int             `json:"min_flash_size_kb"`
+	MinRAMSize   int             `json:"min_ram_size_kb"`
+	Features     map[string]bool `json:"features"`
 }
 
 // refreshBoardsCache refreshes the internal boards cache
@@ -336,14 +336,14 @@ func (bm *BoardManager) isPinAvailable(board *Board, pin int) bool {
 			return true
 		}
 	}
-	
+
 	// Check analog pins
 	for _, p := range board.Capabilities.AnalogPins {
 		if p == pin {
 			return true
 		}
 	}
-	
+
 	return false
 }
 

@@ -28,15 +28,15 @@ func NewArtifactManager(storageDir string) *ArtifactManager {
 
 // BuildArtifact represents a build artifact
 type BuildArtifact struct {
-	ID           string                 `json:"id"`
-	TemplateID   string                 `json:"template_id"`
-	Board        string                 `json:"board"`
-	BinaryPath   string                 `json:"binary_path"`
-	BinaryHash   string                 `json:"binary_hash"`
-	Size         CompilationSize        `json:"size"`
-	Metadata     ArtifactMetadata       `json:"metadata"`
-	CreatedAt    time.Time              `json:"created_at"`
-	ExpiresAt    time.Time              `json:"expires_at"`
+	ID         string           `json:"id"`
+	TemplateID string           `json:"template_id"`
+	Board      string           `json:"board"`
+	BinaryPath string           `json:"binary_path"`
+	BinaryHash string           `json:"binary_hash"`
+	Size       CompilationSize  `json:"size"`
+	Metadata   ArtifactMetadata `json:"metadata"`
+	CreatedAt  time.Time        `json:"created_at"`
+	ExpiresAt  time.Time        `json:"expires_at"`
 }
 
 // ArtifactMetadata contains artifact metadata
@@ -67,7 +67,7 @@ type ArtifactQuery struct {
 func (am *ArtifactManager) StoreArtifact(ctx context.Context, result *CompilationResult) (*BuildArtifact, error) {
 	// Generate artifact ID
 	artifactID := am.generateArtifactID(result)
-	
+
 	// Create artifact directory
 	artifactDir := filepath.Join(am.storageDir, artifactID)
 	if err := os.MkdirAll(artifactDir, 0755); err != nil {
@@ -77,7 +77,7 @@ func (am *ArtifactManager) StoreArtifact(ctx context.Context, result *Compilatio
 	// Copy binary to artifact storage
 	binaryName := filepath.Base(result.BinaryPath)
 	storedBinaryPath := filepath.Join(artifactDir, binaryName)
-	
+
 	if err := am.copyFile(result.BinaryPath, storedBinaryPath); err != nil {
 		return nil, fmt.Errorf("failed to copy binary: %w", err)
 	}
@@ -182,7 +182,7 @@ func (am *ArtifactManager) FindArtifacts(ctx context.Context, query ArtifactQuer
 // DeleteArtifact deletes an artifact
 func (am *ArtifactManager) DeleteArtifact(ctx context.Context, artifactID string) error {
 	artifactDir := filepath.Join(am.storageDir, artifactID)
-	
+
 	if err := os.RemoveAll(artifactDir); err != nil {
 		return fmt.Errorf("failed to delete artifact: %w", err)
 	}
@@ -265,7 +265,7 @@ func (am *ArtifactManager) VerifyArtifact(ctx context.Context, artifactID string
 // generateArtifactID generates a unique artifact ID
 func (am *ArtifactManager) generateArtifactID(result *CompilationResult) string {
 	hasher := sha256.New()
-	
+
 	// Include template ID, board, and binary hash
 	hasher.Write([]byte(result.Metadata.TemplateID))
 	hasher.Write([]byte(result.Metadata.Board))

@@ -77,17 +77,17 @@ type FirmwareReleaseEntity struct {
 
 // OTADeployment represents an OTA deployment configuration
 type OTADeployment struct {
-	DeploymentID       string             `json:"deployment_id"`
-	ReleaseID          string             `json:"release_id"`
-	Strategy           DeploymentStrategy `json:"strategy"`
-	TargetDevices      []string           `json:"target_devices"`
-	RolloutPercentage  int                `json:"rollout_percentage"`
-	Status             DeploymentStatus   `json:"status"`
-	FailureThreshold   int                `json:"failure_threshold"`
-	SuccessCount       int                `json:"success_count"`
-	FailureCount       int                `json:"failure_count"`
-	CreatedAt          time.Time          `json:"created_at"`
-	UpdatedAt          time.Time          `json:"updated_at"`
+	DeploymentID      string             `json:"deployment_id"`
+	ReleaseID         string             `json:"release_id"`
+	Strategy          DeploymentStrategy `json:"strategy"`
+	TargetDevices     []string           `json:"target_devices"`
+	RolloutPercentage int                `json:"rollout_percentage"`
+	Status            DeploymentStatus   `json:"status"`
+	FailureThreshold  int                `json:"failure_threshold"`
+	SuccessCount      int                `json:"success_count"`
+	FailureCount      int                `json:"failure_count"`
+	CreatedAt         time.Time          `json:"created_at"`
+	UpdatedAt         time.Time          `json:"updated_at"`
 }
 
 // OTADeploymentEntity represents the Datastore entity for OTA deployments

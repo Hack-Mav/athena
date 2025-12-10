@@ -442,11 +442,11 @@ func (r *DatastoreRepository) matchesQuery(template *Template, query string) boo
 	if strings.Contains(strings.ToLower(template.Name), query) {
 		return true
 	}
-	
+
 	if strings.Contains(strings.ToLower(template.Description), query) {
 		return true
 	}
-	
+
 	if strings.Contains(strings.ToLower(template.Category), query) {
 		return true
 	}

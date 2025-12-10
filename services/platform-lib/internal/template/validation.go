@@ -84,11 +84,11 @@ func (v *JSONSchemaValidator) ValidateTemplate(template *Template) (*ValidationR
 
 	// Validate board names
 	validBoards := map[string]bool{
-		"arduino:avr:uno":     true,
-		"arduino:avr:nano":    true,
-		"arduino:avr:mega":    true,
-		"arduino:avr:leonardo": true,
-		"esp32:esp32:esp32":   true,
+		"arduino:avr:uno":           true,
+		"arduino:avr:nano":          true,
+		"arduino:avr:mega":          true,
+		"arduino:avr:leonardo":      true,
+		"esp32:esp32:esp32":         true,
 		"esp8266:esp8266:nodemcuv2": true,
 	}
 
@@ -124,8 +124,8 @@ func (v *JSONSchemaValidator) ValidateTemplate(template *Template) (*ValidationR
 		validAssetTypes := map[string]bool{
 			"wiring_diagram": true,
 			"documentation":  true,
-			"image":         true,
-			"code":          true,
+			"image":          true,
+			"code":           true,
 		}
 		if !validAssetTypes[asset.Type] {
 			result.Valid = false

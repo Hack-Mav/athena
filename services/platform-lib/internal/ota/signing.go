@@ -129,12 +129,12 @@ func parsePrivateKey(privateKeyPEM []byte) (*rsa.PrivateKey, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse private key: %w", err)
 		}
-		
+
 		rsaKey, ok := key.(*rsa.PrivateKey)
 		if !ok {
 			return nil, fmt.Errorf("key is not an RSA private key")
 		}
-		
+
 		return rsaKey, nil
 	}
 

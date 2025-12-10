@@ -68,7 +68,7 @@ func (e *Exporter) Export(ctx context.Context, request *ExportRequest, writer io
 func (e *Exporter) exportJSON(metrics []*MetricPoint, writer io.Writer) error {
 	encoder := json.NewEncoder(writer)
 	encoder.SetIndent("", "  ")
-	
+
 	data := map[string]interface{}{
 		"exported_at": time.Now().Format(time.RFC3339),
 		"count":       len(metrics),
@@ -96,7 +96,7 @@ func (e *Exporter) exportCSV(metrics []*MetricPoint, writer io.Writer) error {
 	// Write data rows
 	for _, metric := range metrics {
 		tagsJSON, _ := json.Marshal(metric.Tags)
-		
+
 		row := []string{
 			metric.Timestamp.Format(time.RFC3339),
 			metric.MetricName,
@@ -133,7 +133,7 @@ func (e *Exporter) ExportAggregated(ctx context.Context, query *AggregationQuery
 func (e *Exporter) exportAggregatedJSON(results []*AggregationResult, query *AggregationQuery, writer io.Writer) error {
 	encoder := json.NewEncoder(writer)
 	encoder.SetIndent("", "  ")
-	
+
 	data := map[string]interface{}{
 		"exported_at": time.Now().Format(time.RFC3339),
 		"device_id":   query.DeviceID,

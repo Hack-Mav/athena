@@ -11,21 +11,21 @@ type ErrorCode string
 
 // Standard error codes
 const (
-	ErrTemplateNotFound     ErrorCode = "TEMPLATE_NOT_FOUND"
-	ErrInvalidParameters    ErrorCode = "INVALID_PARAMETERS"
-	ErrCompilationFailed    ErrorCode = "COMPILATION_FAILED"
-	ErrDeviceNotConnected   ErrorCode = "DEVICE_NOT_CONNECTED"
-	ErrFlashFailed          ErrorCode = "FLASH_FAILED"
-	ErrSecretsNotFound      ErrorCode = "SECRETS_NOT_FOUND"
-	ErrElectricalSafety     ErrorCode = "ELECTRICAL_SAFETY_VIOLATION"
-	ErrUnauthorized         ErrorCode = "UNAUTHORIZED"
-	ErrForbidden            ErrorCode = "FORBIDDEN"
-	ErrInternalServer       ErrorCode = "INTERNAL_SERVER_ERROR"
-	ErrServiceUnavailable   ErrorCode = "SERVICE_UNAVAILABLE"
-	ErrBadRequest           ErrorCode = "BAD_REQUEST"
-	ErrNotFound             ErrorCode = "NOT_FOUND"
-	ErrConflict             ErrorCode = "CONFLICT"
-	ErrRateLimited          ErrorCode = "RATE_LIMITED"
+	ErrTemplateNotFound   ErrorCode = "TEMPLATE_NOT_FOUND"
+	ErrInvalidParameters  ErrorCode = "INVALID_PARAMETERS"
+	ErrCompilationFailed  ErrorCode = "COMPILATION_FAILED"
+	ErrDeviceNotConnected ErrorCode = "DEVICE_NOT_CONNECTED"
+	ErrFlashFailed        ErrorCode = "FLASH_FAILED"
+	ErrSecretsNotFound    ErrorCode = "SECRETS_NOT_FOUND"
+	ErrElectricalSafety   ErrorCode = "ELECTRICAL_SAFETY_VIOLATION"
+	ErrUnauthorized       ErrorCode = "UNAUTHORIZED"
+	ErrForbidden          ErrorCode = "FORBIDDEN"
+	ErrInternalServer     ErrorCode = "INTERNAL_SERVER_ERROR"
+	ErrServiceUnavailable ErrorCode = "SERVICE_UNAVAILABLE"
+	ErrBadRequest         ErrorCode = "BAD_REQUEST"
+	ErrNotFound           ErrorCode = "NOT_FOUND"
+	ErrConflict           ErrorCode = "CONFLICT"
+	ErrRateLimited        ErrorCode = "RATE_LIMITED"
 )
 
 // APIError represents a structured API error

@@ -13,15 +13,15 @@ type SafetyValidator struct {
 
 // BoardSpecification represents board electrical specifications
 type BoardSpecification struct {
-	Name              string
-	OperatingVoltage  string
-	IOVoltage         string
-	MaxCurrentPerPin  float64 // in mA
-	MaxTotalCurrent   float64 // in mA
-	DigitalPins       []string
-	AnalogPins        []string
-	PWMPins           []string
-	PowerPins         map[string]string // pin -> voltage
+	Name             string
+	OperatingVoltage string
+	IOVoltage        string
+	MaxCurrentPerPin float64 // in mA
+	MaxTotalCurrent  float64 // in mA
+	DigitalPins      []string
+	AnalogPins       []string
+	PWMPins          []string
+	PowerPins        map[string]string // pin -> voltage
 }
 
 // NewSafetyValidator creates a new safety validator
@@ -386,15 +386,15 @@ func (sv *SafetyValidator) contains(slice []string, item string) bool {
 
 func (sv *SafetyValidator) getGenericBoardSpec() *BoardSpecification {
 	return &BoardSpecification{
-		Name:              "Generic Arduino",
-		OperatingVoltage:  "5V",
-		IOVoltage:         "5V",
-		MaxCurrentPerPin:  40.0,
-		MaxTotalCurrent:   200.0,
-		DigitalPins:       []string{"D0", "D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8", "D9", "D10", "D11", "D12", "D13"},
-		AnalogPins:        []string{"A0", "A1", "A2", "A3", "A4", "A5"},
-		PWMPins:           []string{"D3", "D5", "D6", "D9", "D10", "D11"},
-		PowerPins:         map[string]string{"5V": "5V", "3.3V": "3.3V", "GND": "0V"},
+		Name:             "Generic Arduino",
+		OperatingVoltage: "5V",
+		IOVoltage:        "5V",
+		MaxCurrentPerPin: 40.0,
+		MaxTotalCurrent:  200.0,
+		DigitalPins:      []string{"D0", "D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8", "D9", "D10", "D11", "D12", "D13"},
+		AnalogPins:       []string{"A0", "A1", "A2", "A3", "A4", "A5"},
+		PWMPins:          []string{"D3", "D5", "D6", "D9", "D10", "D11"},
+		PowerPins:        map[string]string{"5V": "5V", "3.3V": "3.3V", "GND": "0V"},
 	}
 }
 
@@ -404,15 +404,15 @@ func initializeBoardSpecs() map[string]*BoardSpecification {
 
 	// Arduino Uno
 	specs["uno"] = &BoardSpecification{
-		Name:              "Arduino Uno",
-		OperatingVoltage:  "5V",
-		IOVoltage:         "5V",
-		MaxCurrentPerPin:  40.0,
-		MaxTotalCurrent:   200.0,
-		DigitalPins:       []string{"D0", "D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8", "D9", "D10", "D11", "D12", "D13"},
-		AnalogPins:        []string{"A0", "A1", "A2", "A3", "A4", "A5"},
-		PWMPins:           []string{"D3", "D5", "D6", "D9", "D10", "D11"},
-		PowerPins:         map[string]string{"5V": "5V", "3.3V": "3.3V", "GND": "0V"},
+		Name:             "Arduino Uno",
+		OperatingVoltage: "5V",
+		IOVoltage:        "5V",
+		MaxCurrentPerPin: 40.0,
+		MaxTotalCurrent:  200.0,
+		DigitalPins:      []string{"D0", "D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8", "D9", "D10", "D11", "D12", "D13"},
+		AnalogPins:       []string{"A0", "A1", "A2", "A3", "A4", "A5"},
+		PWMPins:          []string{"D3", "D5", "D6", "D9", "D10", "D11"},
+		PowerPins:        map[string]string{"5V": "5V", "3.3V": "3.3V", "GND": "0V"},
 	}
 
 	// Arduino Nano
@@ -420,28 +420,28 @@ func initializeBoardSpecs() map[string]*BoardSpecification {
 
 	// ESP32
 	specs["esp32"] = &BoardSpecification{
-		Name:              "ESP32",
-		OperatingVoltage:  "3.3V",
-		IOVoltage:         "3.3V",
-		MaxCurrentPerPin:  40.0,
-		MaxTotalCurrent:   500.0,
-		DigitalPins:       []string{"D0", "D1", "D2", "D3", "D4", "D5", "D12", "D13", "D14", "D15", "D16", "D17", "D18", "D19", "D21", "D22", "D23", "D25", "D26", "D27", "D32", "D33"},
-		AnalogPins:        []string{"A0", "A3", "A4", "A5", "A6", "A7", "A10", "A11", "A12", "A13", "A14", "A15"},
-		PWMPins:           []string{"D2", "D4", "D5", "D12", "D13", "D14", "D15", "D16", "D17", "D18", "D19", "D21", "D22", "D23", "D25", "D26", "D27", "D32", "D33"},
-		PowerPins:         map[string]string{"3.3V": "3.3V", "GND": "0V"},
+		Name:             "ESP32",
+		OperatingVoltage: "3.3V",
+		IOVoltage:        "3.3V",
+		MaxCurrentPerPin: 40.0,
+		MaxTotalCurrent:  500.0,
+		DigitalPins:      []string{"D0", "D1", "D2", "D3", "D4", "D5", "D12", "D13", "D14", "D15", "D16", "D17", "D18", "D19", "D21", "D22", "D23", "D25", "D26", "D27", "D32", "D33"},
+		AnalogPins:       []string{"A0", "A3", "A4", "A5", "A6", "A7", "A10", "A11", "A12", "A13", "A14", "A15"},
+		PWMPins:          []string{"D2", "D4", "D5", "D12", "D13", "D14", "D15", "D16", "D17", "D18", "D19", "D21", "D22", "D23", "D25", "D26", "D27", "D32", "D33"},
+		PowerPins:        map[string]string{"3.3V": "3.3V", "GND": "0V"},
 	}
 
 	// ESP8266
 	specs["esp8266"] = &BoardSpecification{
-		Name:              "ESP8266",
-		OperatingVoltage:  "3.3V",
-		IOVoltage:         "3.3V",
-		MaxCurrentPerPin:  12.0,
-		MaxTotalCurrent:   200.0,
-		DigitalPins:       []string{"D0", "D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8"},
-		AnalogPins:        []string{"A0"},
-		PWMPins:           []string{"D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8"},
-		PowerPins:         map[string]string{"3.3V": "3.3V", "GND": "0V"},
+		Name:             "ESP8266",
+		OperatingVoltage: "3.3V",
+		IOVoltage:        "3.3V",
+		MaxCurrentPerPin: 12.0,
+		MaxTotalCurrent:  200.0,
+		DigitalPins:      []string{"D0", "D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8"},
+		AnalogPins:       []string{"A0"},
+		PWMPins:          []string{"D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8"},
+		PowerPins:        map[string]string{"3.3V": "3.3V", "GND": "0V"},
 	}
 
 	return specs

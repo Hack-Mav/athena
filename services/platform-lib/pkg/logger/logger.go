@@ -16,7 +16,7 @@ type Logger struct {
 // New creates a new logger instance
 func New(level, serviceName string) *Logger {
 	logger := logrus.New()
-	
+
 	// Set log level
 	logLevel, err := logrus.ParseLevel(level)
 	if err != nil {
@@ -46,22 +46,22 @@ func New(level, serviceName string) *Logger {
 // WithContext adds context information to log entries
 func (l *Logger) WithContext(ctx context.Context) *logrus.Entry {
 	entry := l.Logger.WithField("service", l.serviceName)
-	
+
 	// Add request ID if available
 	if requestID := ctx.Value("request_id"); requestID != nil {
 		entry = entry.WithField("request_id", requestID)
 	}
-	
+
 	// Add user ID if available
 	if userID := ctx.Value("user_id"); userID != nil {
 		entry = entry.WithField("user_id", userID)
 	}
-	
+
 	// Add trace ID if available
 	if traceID := ctx.Value("trace_id"); traceID != nil {
 		entry = entry.WithField("trace_id", traceID)
 	}
-	
+
 	return entry
 }
 

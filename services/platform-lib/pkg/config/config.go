@@ -89,6 +89,11 @@ func Load(serviceName string) (*Config, error) {
 	// Override service name
 	config.ServiceName = serviceName
 
+	// Validate required configuration
+	if err := validateConfig(&config); err != nil {
+		return nil, fmt.Errorf("configuration validation failed: %w", err)
+	}
+
 	return &config, nil
 }
 
@@ -111,10 +116,10 @@ func Default(serviceName string) *Config {
 			Username:  "",
 			Password:  "",
 		},
-		MinIOEndpoint:    "localhost:9000",
-		MinIOAccessKey:   "athena",
-		MinIOSecretKey:   "dev_password",
-		MinIOBucket:      "athena-dev",
+		MinIOEndpoint:  "localhost:9000",
+		MinIOAccessKey: "athena",
+		MinIOSecretKey: "dev_password",
+		MinIOBucket:    "athena-dev",
 		Services: map[string]string{
 			"template-service":     "http://localhost:8001",
 			"nlp-service":          "http://localhost:8002",
@@ -125,12 +130,12 @@ func Default(serviceName string) *Config {
 			"secrets-service":      "http://localhost:8007",
 			"api-gateway":          "http://localhost:8000",
 		},
-		JWTSecret:            "dev-secret-key",
-		SecretsEncryptionKey: "dev-encryption-key-change-in-production",
-		LLMProvider:    "openai",
-		LLMAPIKey:      "",
-		LLMEndpoint:    "https://api.openai.com/v1",
-		ArduinoCLIPath: "arduino-cli",
+		JWTSecret:            "", // Must be set via environment variable
+		SecretsEncryptionKey: "", // Must be set via environment variable
+		LLMProvider:          "openai",
+		LLMAPIKey:            "",
+		LLMEndpoint:          "https://api.openai.com/v1",
+		ArduinoCLIPath:       "arduino-cli",
 	}
 }
 
@@ -153,8 +158,8 @@ func setDefaults(serviceName string) {
 	viper.SetDefault("minio_access_key", "athena")
 	viper.SetDefault("minio_secret_key", "dev_password")
 	viper.SetDefault("minio_bucket", "athena-dev")
-	viper.SetDefault("jwt_secret", "dev-secret-key")
-	viper.SetDefault("secrets_encryption_key", "dev-encryption-key-change-in-production")
+	viper.SetDefault("jwt_secret", "")             // Must be set via environment variable
+	viper.SetDefault("secrets_encryption_key", "") // Must be set via environment variable
 	viper.SetDefault("llm_provider", "openai")
 	viper.SetDefault("llm_endpoint", "https://api.openai.com/v1")
 	viper.SetDefault("arduino_cli_path", "arduino-cli")
@@ -192,4 +197,27 @@ func getDefaultGRPCPort(serviceName string) string {
 		return port
 	}
 	return ":9090"
+}
+
+// validateConfig ensures that required configuration values are set
+func validateConfig(config *Config) error {
+	if config.JWTSecret == "" {
+		return fmt.Errorf("JWT_SECRET environment variable is required")
+	}
+
+	if config.SecretsEncryptionKey == "" {
+		return fmt.Errorf("SECRETS_ENCRYPTION_KEY environment variable is required")
+	}
+
+	// For production environment, enforce stricter validation
+	if config.Environment == "production" {
+		if len(config.JWTSecret) < 32 {
+			return fmt.Errorf("JWT_SECRET must be at least 32 characters in production")
+		}
+		if len(config.SecretsEncryptionKey) < 32 {
+			return fmt.Errorf("SECRETS_ENCRYPTION_KEY must be at least 32 characters in production")
+		}
+	}
+
+	return nil
 }

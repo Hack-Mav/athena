@@ -395,11 +395,11 @@ func (r *DatastoreRepository) matchesQuery(device *Device, query string) bool {
 	if strings.Contains(strings.ToLower(device.DeviceID), query) {
 		return true
 	}
-	
+
 	if strings.Contains(strings.ToLower(device.BoardType), query) {
 		return true
 	}
-	
+
 	if strings.Contains(strings.ToLower(device.TemplateID), query) {
 		return true
 	}

@@ -10,10 +10,10 @@ import (
 
 func TestParser_ParseRequirements(t *testing.T) {
 	tests := []struct {
-		name          string
-		input         string
-		expectError   bool
-		validateFunc  func(*testing.T, *ParsedRequirements)
+		name         string
+		input        string
+		expectError  bool
+		validateFunc func(*testing.T, *ParsedRequirements)
 	}{
 		{
 			name:  "Simple temperature sensor project",

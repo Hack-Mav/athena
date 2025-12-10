@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -19,7 +19,8 @@ func main() {
 	// Load configuration
 	cfg, err := config.Load("ota-service")
 	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+		fmt.Printf("Failed to load configuration: %v\n", err)
+		os.Exit(1)
 	}
 
 	// Initialize logger
@@ -29,7 +30,8 @@ func main() {
 	// TODO: Implement proper service with all dependencies
 	_, err = ota.NewService(cfg, logger, nil, nil, nil, nil)
 	if err != nil {
-		logger.Fatalf("Failed to initialize OTA service: %v", err)
+		logger.Error("Failed to initialize OTA service", "error", err)
+		os.Exit(1)
 	}
 
 	// Setup HTTP server
@@ -51,7 +53,8 @@ func main() {
 	go func() {
 		logger.Infof("OTA service starting on %s", cfg.HTTPPort)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Fatalf("Failed to start server: %v", err)
+			logger.Error("Failed to start server", "error", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -67,7 +70,8 @@ func main() {
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		logger.Fatalf("Server forced to shutdown: %v", err)
+		logger.Error("Server forced to shutdown", "error", err)
+		os.Exit(1)
 	}
 
 	logger.Info("Server exited")

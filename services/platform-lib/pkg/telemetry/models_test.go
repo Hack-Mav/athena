@@ -122,7 +122,7 @@ func TestTelemetryEntity_FromEntity_StringValue(t *testing.T) {
 func TestAlert_ToEntity(t *testing.T) {
 	now := time.Now()
 	ackTime := now.Add(5 * time.Minute)
-	
+
 	alert := &Alert{
 		AlertID:        "alert-001",
 		DeviceID:       "device-001",
