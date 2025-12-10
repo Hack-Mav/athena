@@ -209,26 +209,26 @@
     - Test device authentication and update verification
     - _Requirements: 6.1, 6.2, 6.3_
 
-- [ ] 9. Develop CLI tool
-  - [ ] 9.1 Create core CLI framework and commands
+- [x] 9. Develop CLI tool
+  - [x] 9.1 Create core CLI framework and commands
     - Build CLI application structure with Cobra framework
     - Implement template listing, inspection, and selection commands
     - Create configuration management and profile system
     - _Requirements: 7.1, 7.3_
 
-  - [ ] 9.2 Implement provisioning workflow commands
+  - [x] 9.2 Implement provisioning workflow commands
     - Build template rendering and compilation commands
     - Create device flashing and verification commands
     - Implement device registration and management commands
     - _Requirements: 7.1, 7.3, 4.1, 4.2, 4.5_
 
-  - [ ] 9.3 Add NLP and telemetry commands
+  - [x] 9.3 Add NLP and telemetry commands
     - Implement natural language planning command
     - Create telemetry streaming and device monitoring commands
     - Build OTA update management commands
     - _Requirements: 7.1, 7.3, 3.1, 5.3_
 
-  - [ ] 9.4 Write CLI integration tests
+  - [x] 9.4 Write CLI integration tests
 
     - Test end-to-end workflows from template selection to device provisioning
     - Validate command-line argument parsing and validation
