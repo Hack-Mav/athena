@@ -75,8 +75,11 @@ export function ProvisioningWorkflow({ device, initialJob, onJobChange }: Provis
         <h2 className="text-base font-semibold text-zinc-900 mb-4">Provisioning Configuration</h2>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">Template ID</label>
+            <label htmlFor="template-id" className="block text-sm font-medium text-zinc-700 mb-1">
+              Template ID
+            </label>
             <input
+              id="template-id"
               type="text"
               value={templateId}
               onChange={(e) => setTemplateId(e.target.value)}
@@ -84,8 +87,11 @@ export function ProvisioningWorkflow({ device, initialJob, onJobChange }: Provis
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">Configuration (JSON)</label>
+            <label htmlFor="config-json" className="block text-sm font-medium text-zinc-700 mb-1">
+              Configuration (JSON)
+            </label>
             <textarea
+              id="config-json"
               value={JSON.stringify(config, null, 2)}
               onChange={(e) => {
                 try {

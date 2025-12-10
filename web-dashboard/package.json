@@ -12,18 +12,24 @@
     "test:coverage": "jest --coverage"
   },
   "dependencies": {
+    "@rjsf/core": "^6.1.2",
+    "@rjsf/utils": "^6.1.2",
+    "@testing-library/dom": "^10.4.1",
+    "ajv": "^8.17.1",
+    "lucide-react": "^0.559.0",
     "next": "16.0.5",
     "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "recharts": "^3.5.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
     "@testing-library/jest-dom": "^6",
     "@testing-library/react": "^16",
     "@testing-library/user-event": "^14",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
     "axe-core": "^4",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
