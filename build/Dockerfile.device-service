@@ -3,11 +3,14 @@ FROM golang:1.21-alpine AS builder
 RUN apk add --no-cache git ca-certificates tzdata
 
 WORKDIR /app
-COPY go.mod go.sum ./
+COPY go.work go.work.sum ./
+RUN go work sync
+
+COPY services/device-service/go.mod services/device-service/go.sum ./services/device-service/
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/device-service ./cmd/device-service
+RUN CGO_ENABLED=0 GOOS=linux go build -o bin/device-service ./services/device-service
 
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates tzdata

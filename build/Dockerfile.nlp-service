@@ -3,11 +3,14 @@ FROM golang:1.21-alpine AS builder
 RUN apk add --no-cache git ca-certificates tzdata
 
 WORKDIR /app
-COPY go.mod go.sum ./
+COPY go.work go.work.sum ./
+RUN go work sync
+
+COPY services/nlp-service/go.mod services/nlp-service/go.sum ./services/nlp-service/
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/nlp-service ./cmd/nlp-service
+RUN CGO_ENABLED=0 GOOS=linux go build -o bin/nlp-service ./services/nlp-service
 
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates tzdata

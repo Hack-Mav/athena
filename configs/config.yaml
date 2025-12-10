@@ -30,14 +30,15 @@ mqtt_password: ""
 
 # MinIO configuration
 minio_endpoint: "localhost:9000"
-minio_access_key: "athena"
-minio_secret_key: "dev_password"
-minio_bucket: "athena-dev"
+minio_access_key: "${ATHENA_MINIO_ACCESS_KEY}"
+minio_secret_key: "${ATHENA_MINIO_SECRET_KEY}"
+minio_bucket: "${ATHENA_MINIO_BUCKET}"
 
 # Security
-jwt_secret: "dev-secret-key-change-in-production"
+jwt_secret: "${ATHENA_JWT_SECRET}"
+secrets_encryption_key: "${ATHENA_SECRETS_ENCRYPTION_KEY}"
 
 # External services
 llm_provider: "openai"
-llm_api_key: ""  # Set via environment variable ATHENA_LLM_API_KEY
+llm_api_key: "${ATHENA_LLM_API_KEY}"  # Set via environment variable ATHENA_LLM_API_KEY
 llm_endpoint: "https://api.openai.com/v1"

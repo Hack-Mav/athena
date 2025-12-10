@@ -5,6 +5,7 @@ services:
   datastore-emulator:
     image: google/cloud-sdk:alpine
     command: >
+      sh -c "gcloud beta emulators datastore start --host-port=0.0.0.0:8081 --project=athena-dev --no-store-on-disk --consistency=1.0"
       sh -c "gcloud beta emulators datastore start --host-port=0.0.0.0:8081 --project=athena-dev --no-store-on-disk"
     ports:
       - "8081:8081"
@@ -53,7 +54,7 @@ services:
     command: server /data --console-address ":9001"
     ports:
       - "9000:9000"
-      - "9001:9001"
+      - "9002:9001"
     environment:
       MINIO_ROOT_USER: athena
       MINIO_ROOT_PASSWORD: dev_password
