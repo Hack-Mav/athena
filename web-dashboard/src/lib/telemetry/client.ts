@@ -39,6 +39,29 @@ export async function getDeviceHealth(deviceId: string): Promise<DeviceHealth> {
   return handleResponse<DeviceHealth>(res);
 }
 
+export async function getDeviceTelemetry(deviceId: string, timeRange?: string): Promise<TelemetryResponse> {
+  const search = new URLSearchParams();
+  if (timeRange) search.set("timeRange", timeRange);
+  const res = await fetch(`${API_BASE_URL}/api/v1/devices/${encodeURIComponent(deviceId)}/telemetry?${search.toString()}`);
+  return handleResponse<TelemetryResponse>(res);
+}
+
+export async function getDeviceAlerts(deviceId: string, params?: AlertSearchParams): Promise<AlertListResponse> {
+  const search = new URLSearchParams();
+  search.set("deviceId", deviceId);
+  if (params) {
+    if (params.severity) search.set("severity", params.severity);
+    if (params.status) search.set("status", params.status);
+    if (params.type) search.set("type", params.type);
+    if (params.page != null) search.set("page", String(params.page));
+    if (params.pageSize != null) search.set("pageSize", String(params.pageSize));
+    if (params.sortBy) search.set("sortBy", params.sortBy);
+    if (params.sortOrder) search.set("sortOrder", params.sortOrder);
+  }
+  const res = await fetch(`${API_BASE_URL}/api/v1/alerts?${search.toString()}`);
+  return handleResponse<AlertListResponse>(res);
+}
+
 export async function getAllDevicesHealth(): Promise<DeviceHealth[]> {
   const res = await fetch(`${API_BASE_URL}/api/v1/devices/health`);
   return handleResponse<DeviceHealth[]>(res);
