@@ -13,8 +13,15 @@ export default function NewDevicePage() {
   const [formData, setFormData] = useState<CreateDeviceRequest>({
     name: "",
     templateId: "",
-    config: {},
-    metadata: {},
+    config: {
+      boardType: "",
+      wifiSsid: "",
+      wifiPassword: "",
+    },
+    metadata: {
+      description: "",
+      location: "",
+    },
   });
 
   async function handleSubmit(e: React.FormEvent) {
@@ -95,7 +102,7 @@ export default function NewDevicePage() {
                   Board Type
                 </label>
                 <select
-                  value={formData.config.boardType || ""}
+                  value={(formData.config.boardType as string) || ""}
                   onChange={(e) => updateField("config", { ...formData.config, boardType: e.target.value })}
                   className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
                 >
@@ -113,7 +120,7 @@ export default function NewDevicePage() {
                 </label>
                 <input
                   type="text"
-                  value={formData.config.port || ""}
+                  value={(formData.config.port as string) || ""}
                   onChange={(e) => updateField("config", { ...formData.config, port: e.target.value })}
                   className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
                   placeholder="/dev/ttyUSB0 or COM3"
@@ -126,7 +133,7 @@ export default function NewDevicePage() {
                 </label>
                 <input
                   type="text"
-                  value={formData.config.wifiSsid || ""}
+                  value={(formData.config.wifiSsid as string) || ""}
                   onChange={(e) => updateField("config", { ...formData.config, wifiSsid: e.target.value })}
                   className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
                   placeholder="Your WiFi Network"
@@ -139,7 +146,7 @@ export default function NewDevicePage() {
                 </label>
                 <input
                   type="password"
-                  value={formData.config.wifiPassword || ""}
+                  value={(formData.config.wifiPassword as string) || ""}
                   onChange={(e) => updateField("config", { ...formData.config, wifiPassword: e.target.value })}
                   className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
                   placeholder="WiFi Password"
@@ -158,8 +165,8 @@ export default function NewDevicePage() {
                 </label>
                 <textarea
                   rows={3}
-                  value={formData.metadata.description || ""}
-                  onChange={(e) => updateField("metadata", { ...formData.metadata, description: e.target.value })}
+                  value={(formData.metadata?.description as string) || ""}
+                  onChange={(e) => updateField("metadata", { ...(formData.metadata || {}), description: e.target.value })}
                   className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
                   placeholder="Optional description of this device..."
                 />
@@ -171,8 +178,8 @@ export default function NewDevicePage() {
                 </label>
                 <input
                   type="text"
-                  value={formData.metadata.location || ""}
-                  onChange={(e) => updateField("metadata", { ...formData.metadata, location: e.target.value })}
+                  value={(formData.metadata?.location as string) || ""}
+                  onChange={(e) => updateField("metadata", { ...(formData.metadata || {}), location: e.target.value })}
                   className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
                   placeholder="Lab Room 101, Office Shelf, etc."
                 />
