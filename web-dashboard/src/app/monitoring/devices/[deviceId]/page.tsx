@@ -36,13 +36,13 @@ export default function DeviceMonitoringPage() {
         setError(null);
         
         const [telemetryData, alertsData, healthData] = await Promise.all([
-          getDeviceTelemetry(deviceId, timeRange),
-          getDeviceAlerts(deviceId, { status: "active", pageSize: 10 }),
-          getDeviceHealth(deviceId),
+          getDeviceTelemetry(deviceId as string, timeRange),
+          getDeviceAlerts(deviceId as string, { status: "active", pageSize: 10 }),
+          getDeviceHealth(deviceId as string),
         ]);
         
-        setTelemetry(telemetryData);
-        setAlerts(alertsData);
+        setTelemetry(telemetryData.series);
+        setAlerts(alertsData.alerts);
         setHealth(healthData);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load monitoring data");
@@ -116,25 +116,25 @@ export default function DeviceMonitoringPage() {
             <MetricCard
               title="Device Status"
               value={health.status}
-              color={health.status === "online" ? "#10b981" : health.status === "offline" ? "#ef4444" : "#f59e0b"}
+              color={health.status === "healthy" ? "#10b981" : health.status === "offline" ? "#ef4444" : "#f59e0b"}
             />
             <MetricCard
               title="CPU Usage"
-              value={health.cpuUsage}
+              value={health.cpuUsage || 0}
               unit="%"
-              trend={health.cpuUsage > 80 ? "up" : health.cpuUsage < 50 ? "stable" : "up"}
-              color={health.cpuUsage > 80 ? "#ef4444" : health.cpuUsage > 60 ? "#f59e0b" : "#10b981"}
+              trend={(health.cpuUsage || 0) > 80 ? "up" : (health.cpuUsage || 0) < 50 ? "stable" : "up"}
+              color={(health.cpuUsage || 0) > 80 ? "#ef4444" : (health.cpuUsage || 0) > 60 ? "#f59e0b" : "#10b981"}
             />
             <MetricCard
-              title="Memory"
-              value={health.memoryUsage}
-              unit="%"
-              trend={health.memoryUsage > 85 ? "up" : "stable"}
-              color={health.memoryUsage > 85 ? "#ef4444" : health.memoryUsage > 70 ? "#f59e0b" : "#10b981"}
+              title="Free Memory"
+              value={health.freeMemory ? Math.round(health.freeMemory / 1024 / 1024) : 0}
+              unit="MB"
+              trend={health.freeMemory && health.freeMemory < 1000000 ? "down" : "stable"}
+              color={health.freeMemory && health.freeMemory < 1000000 ? "#ef4444" : health.freeMemory && health.freeMemory < 5000000 ? "#f59e0b" : "#10b981"}
             />
             <MetricCard
               title="Uptime"
-              value={Math.floor(health.uptime / 3600)}
+              value={Math.floor((health.uptime || 0) / 3600)}
               unit="hours"
               color="#3b82f6"
             />
@@ -189,12 +189,12 @@ export default function DeviceMonitoringPage() {
               </span>
             </div>
             <div>
-              <span className="font-medium text-zinc-700">Firmware Version:</span>
-              <span className="ml-2 text-zinc-600">{health?.firmwareVersion || "Unknown"}</span>
+              <span className="font-medium text-zinc-700">Device ID:</span>
+              <span className="ml-2 text-zinc-600">{health?.deviceId || "Unknown"}</span>
             </div>
             <div>
-              <span className="font-medium text-zinc-700">IP Address:</span>
-              <span className="ml-2 text-zinc-600">{health?.ipAddress || "Unknown"}</span>
+              <span className="font-medium text-zinc-700">Status:</span>
+              <span className="ml-2 text-zinc-600">{health?.status || "Unknown"}</span>
             </div>
           </div>
         </div>
