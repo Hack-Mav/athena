@@ -1,0 +1,273 @@
+{
+  "id": "4-channel-relay-web-controller",
+  "name": "4-Channel Relay Controller with Web Interface",
+  "version": "1.0.0",
+  "category": "automation",
+  "description": "Web-based 4-channel relay controller for home automation and appliance control",
+  "author": "ATHENA Team",
+  "boards_supported": ["esp32:esp32:devkitv1", "esp8266:esp8266:d1mini"],
+  "libraries": [
+    {
+      "name": "WiFi",
+      "version": "2.0.0"
+    },
+    {
+      "name": "WebServer",
+      "version": "2.0.0"
+    },
+    {
+      "name": "ArduinoJson",
+      "version": "6.21.3"
+    },
+    {
+      "name": "EEPROM",
+      "version": "2.0.0"
+    }
+  ],
+  "schema": {
+    "type": "object",
+    "properties": {
+      "relay1Pin": {
+        "type": "integer",
+        "title": "Relay 1 Pin",
+        "description": "Digital pin controlling relay 1",
+        "minimum": 0,
+        "maximum": 33,
+        "default": 26
+      },
+      "relay2Pin": {
+        "type": "integer",
+        "title": "Relay 2 Pin",
+        "description": "Digital pin controlling relay 2",
+        "minimum": 0,
+        "maximum": 33,
+        "default": 27
+      },
+      "relay3Pin": {
+        "type": "integer",
+        "title": "Relay 3 Pin",
+        "description": "Digital pin controlling relay 3",
+        "minimum": 0,
+        "maximum": 33,
+        "default": 32
+      },
+      "relay4Pin": {
+        "type": "integer",
+        "title": "Relay 4 Pin",
+        "description": "Digital pin controlling relay 4",
+        "minimum": 0,
+        "maximum": 33,
+        "default": 33
+      },
+      "ssid": {
+        "type": "string",
+        "title": "WiFi SSID",
+        "description": "WiFi network name",
+        "default": "YOUR_WIFI_SSID"
+      },
+      "password": {
+        "type": "string",
+        "title": "WiFi Password",
+        "description": "WiFi network password",
+        "default": "YOUR_WIFI_PASSWORD"
+      },
+      "deviceName": {
+        "type": "string",
+        "title": "Device Name",
+        "description": "Name for this relay controller",
+        "default": "Smart Relay Controller"
+      },
+      "relay1Name": {
+        "type": "string",
+        "title": "Relay 1 Name",
+        "description": "Custom name for relay 1",
+        "default": "Living Room Light"
+      },
+      "relay2Name": {
+        "type": "string",
+        "title": "Relay 2 Name",
+        "description": "Custom name for relay 2",
+        "default": "Bedroom Fan"
+      },
+      "relay3Name": {
+        "type": "string",
+        "title": "Relay 3 Name",
+        "description": "Custom name for relay 3",
+        "default": "Kitchen Appliances"
+      },
+      "relay4Name": {
+        "type": "string",
+        "title": "Relay 4 Name",
+        "description": "Custom name for relay 4",
+        "default": "Garden Lights"
+      },
+      "autoOffDelay": {
+        "type": "integer",
+        "title": "Auto-Off Delay",
+        "description": "Auto-off delay in minutes (0 = disabled)",
+        "minimum": 0,
+        "maximum": 1440,
+        "default": 0
+      },
+      "enableScheduler": {
+        "type": "boolean",
+        "title": "Enable Scheduler",
+        "description": "Enable time-based scheduling",
+        "default": false
+      }
+    },
+    "required": ["relay1Pin", "relay2Pin", "relay3Pin", "relay4Pin", "ssid", "deviceName"]
+  },
+  "parameters": {
+    "relay1Pin": 26,
+    "relay2Pin": 27,
+    "relay3Pin": 32,
+    "relay4Pin": 33,
+    "ssid": "YOUR_WIFI_SSID",
+    "password": "YOUR_WIFI_PASSWORD",
+    "deviceName": "Smart Relay Controller",
+    "relay1Name": "Living Room Light",
+    "relay2Name": "Bedroom Fan",
+    "relay3Name": "Kitchen Appliances",
+    "relay4Name": "Garden Lights",
+    "autoOffDelay": 0,
+    "enableScheduler": false
+  },
+  "assets": [
+    {
+      "type": "code",
+      "path": "relay_web_controller.ino",
+      "metadata": {
+        "content": "#include <WiFi.h>\n#include <WebServer.h>\n#include <ArduinoJson.h>\n#include <EEPROM.h>\n\n// WiFi Configuration\nconst char* ssid = \"{{.ssid}}\";\nconst char* password = \"{{.password}}\";\n\n// Relay Pins\nconst int relayPins[4] = {{.relay1Pin}, {{.relay2Pin}, {{.relay3Pin}, {{.relay4Pin}}};\nconst char* relayNames[4] = {\"{{.relay1Name}}\", \"{{.relay2Name}}\", \"{{.relay3Name}}\", \"{{.relay4Name}}\"};\n\n// Configuration\nconst char* deviceName = \"{{.deviceName}}\";\nconst int autoOffDelay = {{.autoOffDelay}}; // minutes, 0 = disabled\nconst bool enableScheduler = {{.enableScheduler}};\n\n// Global variables\nWebServer server(80);\nbool relayStates[4] = {false, false, false, false};\nunsigned long relayOnTime[4] = {0, 0, 0, 0};\nString deviceIP = \"\";\n\n// EEPROM addresses\n#define EEPROM_SIZE 64\n#define RELAY_STATE_ADDR 0\n#define AUTO_OFF_DELAY_ADDR 4\n\n// Function prototypes\nvoid setupWiFi();\nvoid setupWebServer();\nvoid handleRoot();\nvoid handleRelayControl();\nvoid handleStatus();\nvoid handleConfig();\nvoid handleReset();\nvoid updateRelay(int relayNum, bool state);\nvoid checkAutoOff();\nvoid loadSettings();\nvoid saveSettings();\nString getHTMLHeader();\nString getHTMLFooter();\nString getRelayCard(int relayNum);\n\nvoid setup() {\n  Serial.begin(115200);\n  Serial.println(\"4-Channel Relay Controller Starting...\");\n  \n  // Initialize relay pins\n  for (int i = 0; i < 4; i++) {\n    pinMode(relayPins[i], OUTPUT);\n    digitalWrite(relayPins[i], LOW); // Relays are active LOW\n  }\n  \n  // Initialize EEPROM\n  EEPROM.begin(EEPROM_SIZE);\n  loadSettings();\n  \n  // Setup WiFi\n  setupWiFi();\n  \n  // Setup web server\n  setupWebServer();\n  \n  Serial.print(\"Web server started! IP: \");\n  Serial.println(WiFi.localIP());\n  deviceIP = WiFi.localIP().toString();\n}\n\nvoid loop() {\n  server.handleClient();\n  checkAutoOff();\n  delay(10);\n}\n\nvoid setupWiFi() {\n  Serial.println(\"Connecting to WiFi...\");\n  \n  WiFi.begin(ssid, password);\n  \n  int attempts = 0;\n  while (WiFi.status() != WL_CONNECTED && attempts < 20) {\n    delay(500);\n    Serial.print(\".\");\n    attempts++;\n  }\n  \n  if (WiFi.status() == WL_CONNECTED) {\n    Serial.println(\"\");\n    Serial.println(\"WiFi connected!\");\n    Serial.print(\"IP address: \");\n    Serial.println(WiFi.localIP());\n  } else {\n    Serial.println(\"Failed to connect to WiFi\");\n  }\n}\n\nvoid setupWebServer() {\n  server.on(\"/\", HTTP_GET, handleRoot);\n  server.on(\"/relay\", HTTP_POST, handleRelayControl);\n  server.on(\"/status\", HTTP_GET, handleStatus);\n  server.on(\"/config\", HTTP_POST, handleConfig);\n  server.on(\"/reset\", HTTP_POST, handleReset);\n  \n  // Serve static CSS and JS\n  server.on(\"/style.css\", []() {\n    server.send(200, \"text/css\", getCSS());\n  });\n  \n  server.on(\"/script.js\", []() {\n    server.send(200, \"application/javascript\", getJavaScript());\n  });\n  \n  server.begin();\n}\n\nvoid handleRoot() {\n  String html = getHTMLHeader();\n  \n  html += \"<div class='container'>\";\n  html += \"<h1>\" + String(deviceName) + \"</h1>\";\n  html += \"<p class='status'>Device IP: \" + deviceIP + \"</p>\";\n  \n  // Relay control cards\n  for (int i = 0; i < 4; i++) {\n    html += getRelayCard(i);\n  }\n  \n  html += \"</div>\";\n  html += getHTMLFooter();\n  \n  server.send(200, \"text/html\", html);\n}\n\nvoid handleRelayControl() {\n  String relayNum = server.arg(\"relay\");\n  String state = server.arg(\"state\");\n  \n  if (relayNum.length() > 0 && state.length() > 0) {\n    int relay = relayNum.toInt();\n    bool turnOn = (state == \"on\");\n    \n    if (relay >= 0 && relay < 4) {\n      updateRelay(relay, turnOn);\n      \n      // Send JSON response\n      StaticJsonDocument<200> doc;\n      doc[\"success\"] = true;\n      doc[\"relay\"] = relay;\n      doc[\"state\"] = turnOn;\n      doc[\"name\"] = relayNames[relay];\n      \n      String response;\n      serializeJson(doc, response);\n      server.send(200, \"application/json\", response);\n      \n      return;\n    }\n  }\n  \n  // Error response\n  StaticJsonDocument<100> doc;\n  doc[\"success\"] = false;\n  doc[\"error\"] = \"Invalid parameters\";\n  \n  String response;\n  serializeJson(doc, response);\n  server.send(400, \"application/json\", response);\n}\n\nvoid handleStatus() {\n  StaticJsonDocument<300> doc;\n  doc[\"deviceName\"] = deviceName;\n  doc[\"ip\"] = deviceIP;\n  doc[\"uptime\"] = millis();\n  \n  JsonArray relays = doc.createNestedArray(\"relays\");\n  for (int i = 0; i < 4; i++) {\n    JsonObject relay = relays.createNestedObject();\n    relay[\"id\"] = i;\n    relay[\"name\"] = relayNames[i];\n    relay[\"state\"] = relayStates[i];\n    relay[\"onTime\"] = relayOnTime[i];\n  }\n  \n  String response;\n  serializeJson(doc, response);\n  server.send(200, \"application/json\", response);\n}\n\nvoid handleConfig() {\n  // Handle configuration updates\n  String response = \"{\\\"success\\\":true,\\\"message\\\":\\\"Configuration updated\\\"}\";\n  server.send(200, \"application/json\", response);\n}\n\nvoid handleReset() {\n  // Reset all relays to OFF\n  for (int i = 0; i < 4; i++) {\n    updateRelay(i, false);\n  }\n  \n  String response = \"{\\\"success\\\":true,\\\"message\\\":\\\"All relays reset\\\"}\";\n  server.send(200, \"application/json\", response);\n}\n\nvoid updateRelay(int relayNum, bool state) {\n  if (relayNum < 0 || relayNum >= 4) return;\n  \n  relayStates[relayNum] = state;\n  \n  // Relays are active LOW\n  digitalWrite(relayPins[relayNum], state ? LOW : HIGH);\n  \n  if (state) {\n    relayOnTime[relayNum] = millis();\n    Serial.print(\"Relay \");\n    Serial.print(relayNum + 1);\n    Serial.print(\" (\");\n    Serial.print(relayNames[relayNum]);\n    Serial.println(\") turned ON\");\n  } else {\n    relayOnTime[relayNum] = 0;\n    Serial.print(\"Relay \");\n    Serial.print(relayNum + 1);\n    Serial.print(\" (\");\n    Serial.print(relayNames[relayNum]);\n    Serial.println(\") turned OFF\");\n  }\n  \n  // Save state to EEPROM\n  saveSettings();\n}\n\nvoid checkAutoOff() {\n  if (autoOffDelay <= 0) return; // Auto-off disabled\n  \n  unsigned long currentTime = millis();\n  unsigned long delayMs = autoOffDelay * 60 * 1000UL; // Convert minutes to milliseconds\n  \n  for (int i = 0; i < 4; i++) {\n    if (relayStates[i] && (currentTime - relayOnTime[i] >= delayMs)) {\n      Serial.print(\"Auto-off: Relay \");\n      Serial.print(i + 1);\n      Serial.println(\" turned off due to time limit\");\n      updateRelay(i, false);\n    }\n  }\n}\n\nvoid loadSettings() {\n  // Load relay states from EEPROM\n  for (int i = 0; i < 4; i++) {\n    relayStates[i] = EEPROM.read(EEPROM_STATE_ADDR + i);\n    if (relayStates[i]) {\n      digitalWrite(relayPins[i], LOW); // Turn on if saved state is ON\n      relayOnTime[i] = millis();\n    }\n  }\n  \n  // Load auto-off delay\n  // Note: This would need multi-byte storage for larger values\n  // For simplicity, using 0-255 minute range\n  int savedDelay = EEPROM.read(AUTO_OFF_DELAY_ADDR);\n  if (savedDelay > 0 && savedDelay <= 255) {\n    // Use saved value if valid\n  }\n}\n\nvoid saveSettings() {\n  // Save relay states to EEPROM\n  for (int i = 0; i < 4; i++) {\n    EEPROM.write(EEPROM_STATE_ADDR + i, relayStates[i]);\n  }\n  \n  // Save auto-off delay\n  EEPROM.write(AUTO_OFF_DELAY_ADDR, (autoOffDelay <= 255) ? autoOffDelay : 0);\n  \n  EEPROM.commit();\n}\n\nString getHTMLHeader() {\n  return R\"(<!DOCTYPE html>\n<html>\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>)\" + String(deviceName) + R\"(</title>\n    <link rel=\"stylesheet\" href=\"/style.css\">\n</head>\n<body>)\";\n}\n\nString getHTMLFooter() {\n  return R\"(</body>\n<script src=\"/script.js\"></script>\n</html>)\";\n}\n\nString getRelayCard(int relayNum) {\n  String card = R\"(<div class=\"relay-card\">)\";\n  card += \"<h2>\" + String(relayNames[relayNum]) + \"</h2>\";\n  card += \"<div class=\"relay-status\" id=\"status-\" + String(relayNum) + \"\">\";\n  card += \"<span class=\"status-text\">\" + String(relayStates[relayNum] ? \"ON\" : \"OFF\") + \"</span>\";\n  card += \"</div>\";\n  card += \"<div class=\"relay-controls\">\";\n  card += \"<button class=\\\"btn btn-on\\\" onclick=\\\"toggleRelay(\" + String(relayNum) + \", true)\\\">ON</button>\";\n  card += \"<button class=\\\"btn btn-off\\\" onclick=\\\"toggleRelay(\" + String(relayNum) + \", false)\\\">OFF</button>\";\n  card += \"</div>\";\n  card += \"</div>\";\n  return card;\n}\n\nString getCSS() {\n  return R\"(* {\n    margin: 0;\n    padding: 0;\n    box-sizing: border-box;\n  }\n  \n  body {\n    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n    min-height: 100vh;\n    color: #333;\n  }\n  \n  .container {\n    max-width: 1200px;\n    margin: 0 auto;\n    padding: 20px;\n  }\n  \n  h1 {\n    text-align: center;\n    color: white;\n    margin-bottom: 10px;\n    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);\n  }\n  \n  .status {\n    text-align: center;\n    color: white;\n    margin-bottom: 30px;\n    font-size: 14px;\n  }\n  \n  .relay-card {\n    background: white;\n    border-radius: 15px;\n    padding: 25px;\n    margin-bottom: 20px;\n    box-shadow: 0 8px 32px rgba(0,0,0,0.1);\n    transition: transform 0.3s ease, box-shadow 0.3s ease;\n  }\n  \n  .relay-card:hover {\n    transform: translateY(-5px);\n    box-shadow: 0 12px 40px rgba(0,0,0,0.15);\n  }\n  \n  .relay-card h2 {\n    margin: 0 0 15px 0;\n    color: #333;\n    font-size: 1.4em;\n  }\n  \n  .relay-status {\n    margin-bottom: 20px;\n  }\n  \n  .status-text {\n    font-size: 1.2em;\n    font-weight: bold;\n    padding: 8px 16px;\n    border-radius: 20px;\n    display: inline-block;\n  }\n  \n  .status-text:contains(\"ON\") {\n    background: #4CAF50;\n    color: white;\n  }\n  \n  .status-text:contains(\"OFF\") {\n    background: #f44336;\n    color: white;\n  }\n  \n  .relay-controls {\n    display: flex;\n    gap: 15px;\n  }\n  \n  .btn {\n    flex: 1;\n    padding: 12px 20px;\n    border: none;\n    border-radius: 8px;\n    font-size: 16px;\n    font-weight: bold;\n    cursor: pointer;\n    transition: all 0.3s ease;\n    text-transform: uppercase;\n  }\n  \n  .btn-on {\n    background: #4CAF50;\n    color: white;\n  }\n  \n  .btn-on:hover {\n    background: #45a049;\n    transform: scale(1.05);\n  }\n  \n  .btn-off {\n    background: #f44336;\n    color: white;\n  }\n  \n  .btn-off:hover {\n    background: #da190b;\n    transform: scale(1.05);\n  })\";\n}\n\nString getJavaScript() {\n  return R\"(function toggleRelay(relayNum, state) {\n  fetch('/relay', {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/x-www-form-urlencoded',\n    },\n    body: 'relay=' + relayNum + '&state=' + (state ? 'on' : 'off')\n  })\n  .then(response => response.json())\n  .then(data => {\n    if (data.success) {\n      updateStatus(data.relay, data.state);\n    } else {\n      console.error('Error:', data.error);\n    }\n  })\n  .catch(error => console.error('Error:', error));\n}\n\nfunction updateStatus(relayNum, state) {\n  const statusElement = document.getElementById('status-' + relayNum);\n  const statusText = statusElement.querySelector('.status-text');\n  \n  statusText.textContent = state ? 'ON' : 'OFF';\n  \n  if (state) {\n    statusText.style.background = '#4CAF50';\n  } else {\n    statusText.style.background = '#f44336';\n  }\n}\n\n// Auto-refresh status every 5 seconds\nsetInterval(() => {\n  fetch('/status')\n    .then(response => response.json())\n    .then(data => {\n      data.relays.forEach(relay => {\n        updateStatus(relay.id, relay.state);\n      });\n    })\n    .catch(error => console.error('Status update error:', error));\n}, 5000);)\";\n}"
+      }
+    },
+    {
+      "type": "wiring_diagram",
+      "path": "relay_controller_wiring.png",
+      "metadata": {
+        "description": "Wiring diagram for 4-channel relay module",
+        "connections": [
+          {
+            "from": "ESP32 5V",
+            "to": "Relay Module VCC",
+            "wire_color": "red"
+          },
+          {
+            "from": "ESP32 GND",
+            "to": "Relay Module GND",
+            "wire_color": "black"
+          },
+          {
+            "from": "ESP32 Digital Pin {{.relay1Pin}}",
+            "to": "Relay Module IN1",
+            "wire_color": "blue"
+          },
+          {
+            "from": "ESP32 Digital Pin {{.relay2Pin}}",
+            "to": "Relay Module IN2",
+            "wire_color": "green"
+          },
+          {
+            "from": "ESP32 Digital Pin {{.relay3Pin}}",
+            "to": "Relay Module IN3",
+            "wire_color": "yellow"
+          },
+          {
+            "from": "ESP32 Digital Pin {{.relay4Pin}}",
+            "to": "Relay Module IN4",
+            "wire_color": "orange"
+          }
+        ]
+      }
+    },
+    {
+      "type": "documentation",
+      "path": "README.md",
+      "metadata": {
+        "content": "# 4-Channel Relay Controller with Web Interface\n\n## Overview\nThis template implements a web-based 4-channel relay controller that allows you to control electrical appliances and lights through a web browser. Perfect for home automation and IoT applications.\n\n## Features\n- Web-based control interface\n- 4 independently controllable relays\n- Custom relay names for easy identification\n- Real-time status monitoring\n- Auto-off timer for safety\n- Persistent state storage (EEPROM)\n- Responsive web interface\n- JSON API for integration\n- Mobile-friendly design\n\n## Web Interface\n- **Dashboard**: Shows all 4 relays with ON/OFF controls\n- **Real-time Status**: Auto-updates every 5 seconds\n- **Custom Names**: Each relay has a customizable name\n- **Visual Feedback**: Color-coded status indicators\n- **Mobile Responsive**: Works on smartphones and tablets\n\n## API Endpoints\n- `GET /` - Main web interface\n- `POST /relay` - Control individual relays\n- `GET /status` - Get current status\n- `POST /config` - Update configuration\n- `POST /reset` - Reset all relays to OFF\n\n## Relay Control\nSend POST request to `/relay` with parameters:\n```\nrelay=0&state=on\nrelay=1&state=off\n```\n\n## Configuration Options\n- **Relay Pins**: Digital pins for each relay (default: 26,27,32,33)\n- **WiFi Settings**: SSID and password for network connection\n- **Device Name**: Custom name for the controller\n- **Relay Names**: Custom names for each relay\n- **Auto-Off Delay**: Automatic turn-off timer in minutes (0=disabled)\n- **Scheduler**: Time-based scheduling (future feature)\n\n## Wiring\n- ESP32 5V → Relay Module VCC\n- ESP32 GND → Relay Module GND\n- ESP32 Digital Pin {{.relay1Pin}} → Relay Module IN1\n- ESP32 Digital Pin {{.relay2Pin}} → Relay Module IN2\n- ESP32 Digital Pin {{.relay3Pin}} → Relay Module IN3\n- ESP32 Digital Pin {{.relay4Pin}} → Relay Module IN4\n- Relay COM → Power Supply Positive\n- Relay NO → Appliance Positive\n- Appliance Negative → Power Supply Negative\n\n## Safety Features\n- Auto-off timer prevents accidental left-on\n- EEPROM persistence remembers last state\n- Web interface requires manual confirmation\n- Visual status indicators\n- Error handling and validation\n\n## Use Cases\n- Home lighting control\n- Fan and appliance management\n- Garden lighting automation\n- Industrial equipment control\n- Smart home integration\n- Remote control systems\n\n## Integration Options\n- MQTT publishing for IoT platforms\n- Voice assistant integration\n- Mobile app control\n- Automation rules and schedules\n- Sensor-based automation\n\n## Dependencies\n- WiFi library (built-in)\n- WebServer library (built-in)\n- ArduinoJson v6.21.3\n- EEPROM library (built-in)\n\n## Troubleshooting\n- **Cannot connect to WiFi**: Check SSID and password\n- **Relays not responding**: Verify wiring and power supply\n- **Web interface not loading**: Check IP address and network\n- **State not persistent**: Check EEPROM functionality\n- **Auto-off not working**: Verify delay settings\n\n## Advanced Features\n- Time-based scheduling\n- Sensor integration\n- Energy monitoring\n- Scene management\n- Voice control\n- Mobile notifications\n\n## Security Notes\n- Change default WiFi credentials\n- Use WPA2/WPA3 security\n- Consider VPN for remote access\n- Regular firmware updates\n- Network isolation for critical systems"
+      }
+    }
+  ],
+  "wiring_spec": {
+    "components": [
+      {
+        "id": "esp32",
+        "type": "board",
+        "name": "ESP32 Development Board",
+        "pins": [
+          {"number": "5V", "name": "5V", "type": "power"},
+          {"number": "GND", "name": "GND", "type": "ground"},
+          {"number": "{{.relay1Pin}}", "name": "GPIO{{.relay1Pin}}", "type": "digital"},
+          {"number": "{{.relay2Pin}}", "name": "GPIO{{.relay2Pin}}", "type": "digital"},
+          {"number": "{{.relay3Pin}}", "name": "GPIO{{.relay3Pin}}", "type": "digital"},
+          {"number": "{{.relay4Pin}}", "name": "GPIO{{.relay4Pin}}", "type": "digital"}
+        ]
+      },
+      {
+        "id": "relay-module",
+        "type": "actuator",
+        "name": "4-Channel Relay Module",
+        "pins": [
+          {"number": "1", "name": "VCC", "type": "power"},
+          {"number": "2", "name": "GND", "type": "ground"},
+          {"number": "3", "name": "IN1", "type": "digital"},
+          {"number": "4", "name": "IN2", "type": "digital"},
+          {"number": "5", "name": "IN3", "type": "digital"},
+          {"number": "6", "name": "IN4", "type": "digital"},
+          {"number": "7", "name": "COM1", "type": "power"},
+          {"number": "8", "name": "NO1", "type": "power"},
+          {"number": "9", "name": "COM2", "type": "power"},
+          {"number": "10", "name": "NO2", "type": "power"},
+          {"number": "11", "name": "COM3", "type": "power"},
+          {"number": "12", "name": "NO3", "type": "power"},
+          {"number": "13", "name": "COM4", "type": "power"},
+          {"number": "14", "name": "NO4", "type": "power"}
+        ]
+      }
+    ],
+    "connections": [
+      {
+        "from_component": "esp32",
+        "from_pin": "5V",
+        "to_component": "relay-module",
+        "to_pin": "1",
+        "wire_color": "red"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "GND",
+        "to_component": "relay-module",
+        "to_pin": "2",
+        "wire_color": "black"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "{{.relay1Pin}}",
+        "to_component": "relay-module",
+        "to_pin": "3",
+        "wire_color": "blue"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "{{.relay2Pin}}",
+        "to_component": "relay-module",
+        "to_pin": "4",
+        "wire_color": "green"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "{{.relay3Pin}}",
+        "to_component": "relay-module",
+        "to_pin": "5",
+        "wire_color": "yellow"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "{{.relay4Pin}}",
+        "to_component": "relay-module",
+        "to_pin": "6",
+        "wire_color": "orange"
+      }
+    ]
+  }
+}

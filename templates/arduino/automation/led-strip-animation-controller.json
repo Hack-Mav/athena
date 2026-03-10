@@ -1,0 +1,253 @@
+{
+  "id": "led-strip-animation-controller",
+  "name": "LED Strip Animation Controller with Pattern Configuration",
+  "version": "1.0.0",
+  "category": "automation",
+  "description": "Advanced LED strip animation controller with customizable patterns and web interface",
+  "author": "ATHENA Team",
+  "boards_supported": ["arduino:avr:mega", "esp32:esp32:devkitv1", "esp8266:esp8266:d1mini"],
+  "libraries": [
+    {
+      "name": "FastLED",
+      "version": "3.5.0"
+    },
+    {
+      "name": "ArduinoJson",
+      "version": "6.21.3"
+    },
+    {
+      "name": "WiFi",
+      "version": "2.0.0"
+    },
+    {
+      "name": "WebServer",
+      "version": "2.0.0"
+    }
+  ],
+  "schema": {
+    "type": "object",
+    "properties": {
+      "ledPin": {
+        "type": "integer",
+        "title": "LED Data Pin",
+        "description": "Data pin for LED strip (NeoPixel/WS2812B)",
+        "minimum": 2,
+        "maximum": 13,
+        "default": 6
+      },
+      "numLeds": {
+        "type": "integer",
+        "title": "Number of LEDs",
+        "description": "Total number of LEDs in the strip",
+        "minimum": 1,
+        "maximum": 300,
+        "default": 60
+      },
+      "brightness": {
+        "type": "integer",
+        "title": "Brightness",
+        "description": "LED brightness (0-255)",
+        "minimum": 0,
+        "maximum": 255,
+        "default": 128
+      },
+      "colorOrder": {
+        "type": "string",
+        "title": "Color Order",
+        "description": "LED strip color order",
+        "enum": ["RGB", "GRB", "BRG"],
+        "default": "GRB"
+      },
+      "animationSpeed": {
+        "type": "integer",
+        "title": "Animation Speed",
+        "description": "Animation speed multiplier (1-10)",
+        "minimum": 1,
+        "maximum": 10,
+        "default": 5
+      },
+      "enableWebControl": {
+        "type": "boolean",
+        "title": "Enable Web Control",
+        "description": "Enable web-based control interface",
+        "default": true
+      },
+      "ssid": {
+        "type": "string",
+        "title": "WiFi SSID",
+        "description": "WiFi network name",
+        "default": "YOUR_WIFI_SSID"
+      },
+      "password": {
+        "type": "string",
+        "title": "WiFi Password",
+        "description": "WiFi network password",
+        "default": "YOUR_WIFI_PASSWORD"
+      },
+      "deviceName": {
+        "type": "string",
+        "title": "Device Name",
+        "description": "Name for this LED controller",
+        "default": "LED Animation Controller"
+      },
+      "customPatterns": {
+        "type": "array",
+        "title": "Custom Patterns",
+        "description": "Custom animation patterns",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {"type": "string"},
+            "type": {"type": "string", "enum": ["rainbow", "chase", "fade", "sparkle", "color_wipe", "theater_chase", "scanner", "solid"]},
+            "color": {"type": "string", "default": "#FF0000"},
+            "speed": {"type": "integer", "minimum": 1, "maximum": 10, "default": 5}
+          }
+        },
+        "default": [
+          {"name": "Rainbow", "type": "rainbow", "speed": 5},
+          {"name": "Blue Chase", "type": "chase", "color": "#0000FF", "speed": 7},
+          {"name": "Red Fade", "type": "fade", "color": "#FF0000", "speed": 3},
+          {"name": "White Sparkle", "type": "sparkle", "color": "#FFFFFF", "speed": 8}
+        ]
+      }
+    },
+    "required": ["ledPin", "numLeds", "brightness"]
+  },
+  "parameters": {
+    "ledPin": 6,
+    "numLeds": 60,
+    "brightness": 128,
+    "colorOrder": "GRB",
+    "animationSpeed": 5,
+    "enableWebControl": true,
+    "ssid": "YOUR_WIFI_SSID",
+    "password": "YOUR_WIFI_PASSWORD",
+    "deviceName": "LED Animation Controller",
+    "customPatterns": [
+      {"name": "Rainbow", "type": "rainbow", "speed": 5},
+      {"name": "Blue Chase", "type": "chase", "color": "#0000FF", "speed": 7},
+      {"name": "Red Fade", "type": "fade", "color": "#FF0000", "speed": 3},
+      {"name": "White Sparkle", "type": "sparkle", "color": "#FFFFFF", "speed": 8}
+    ]
+  },
+  "assets": [
+    {
+      "type": "code",
+      "path": "led_strip_animation_controller.ino",
+      "metadata": {
+        "content": "#include <FastLED.h>\n#include <ArduinoJson.h>\n\n#if defined(ESP32)\n#include <WiFi.h>\n#include <WebServer.h>\n#endif\n\n// LED Strip Configuration\n#define LED_PIN {{.ledPin}}\n#define NUM_LEDS {{.numLeds}}\n#define BRIGHTNESS {{.brightness}}\n#define COLOR_ORDER \"{{.colorOrder}}\"\n#define ANIMATION_SPEED {{.animationSpeed}}\n#define ENABLE_WEB_CONTROL {{.enableWebControl}}\n\n// WiFi Configuration (ESP32 only)\n#if defined(ESP32)\nconst char* ssid = \"{{.ssid}}\";\nconst char* password = \"{{.password}}\";\nconst char* deviceName = \"{{.deviceName}}\";\nWebServer server(80);\n#endif\n\n// Global variables\nCRGB leds[NUM_LEDS];\nString currentPattern = \"rainbow\";\nuint8_t currentHue = 0;\nuint8_t currentBrightness = BRIGHTNESS;\nuint8_t currentSpeed = ANIMATION_SPEED;\nunsigned long lastUpdateTime = 0;\nbool animationRunning = true;\n\n// Animation variables\nuint8_t chasePosition = 0;\nuint8_t fadePosition = 0;\nuint8_t sparklePosition = 0;\nuint8_t scannerPosition = 0;\nbool scannerDirection = true;\nuint8_t theaterChasePosition = 0;\nuint8_t theaterChaseStep = 0;\n\n// Function prototypes\nvoid setupLEDs();\nvoid updateAnimation();\nvoid rainbow();\nvoid chase(CRGB color);\nvoid fade(CRGB color);\nvoid sparkle(CRGB color);\nvoid colorWipe(CRGB color);\nvoid theaterChase(CRGB color);\nvoid scanner(CRGB color);\nvoid solidColor(CRGB color);\nCRGB hexToCRGB(String hexColor);\n#if defined(ESP32)\nvoid setupWiFi();\nvoid setupWebServer();\nvoid handleRoot();\nvoid handleControl();\nvoid handleStatus();\nvoid handlePatterns();\nString getHTMLHeader();\nString getHTMLFooter();\nString getControlPanel();\nString getPatternButtons();\nString getJavaScript();\nString getCSS();\n#endif\n\nvoid setup() {\n  Serial.begin(115200);\n  Serial.println(\"LED Strip Animation Controller Starting...\");\n  \n  setupLEDs();\n  \n#if defined(ESP32)\n  if (ENABLE_WEB_CONTROL) {\n    setupWiFi();\n    setupWebServer();\n    Serial.print(\"Web server started! IP: \");\n    Serial.println(WiFi.localIP());\n  }\n#endif\n  \n  Serial.print(\"LED Strip initialized - \");\n  Serial.print(NUM_LEDS);\n  Serial.print(\" LEDs, Color Order: \");\n  Serial.println(COLOR_ORDER);\n  Serial.println(\"Setup completed!\");\n}\n\nvoid setupLEDs() {\n  // Set up FastLED based on color order\n  #if defined(COLOR_ORDER_GRB)\n    FastLED.addLeds<WS2812B, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS);\n  #elif defined(COLOR_ORDER_RGB)\n    FastLED.addLeds<WS2812B, LED_PIN, RGB>(leds, NUM_LEDS);\n  #elif defined(COLOR_ORDER_BRG)\n    FastLED.addLeds<WS2812B, LED_PIN, BRG>(leds, NUM_LEDS);\n  #else\n    FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, NUM_LEDS);\n  #endif\n  \n  FastLED.setBrightness(currentBrightness);\n  FastLED.clear();\n  FastLED.show();\n}\n\n#if defined(ESP32)\nvoid setupWiFi() {\n  Serial.println(\"Connecting to WiFi...\");\n  \n  WiFi.begin(ssid, password);\n  \n  int attempts = 0;\n  while (WiFi.status() != WL_CONNECTED && attempts < 20) {\n    delay(500);\n    Serial.print(\".\");\n    attempts++;\n  }\n  \n  if (WiFi.status() == WL_CONNECTED) {\n    Serial.println(\"\");\n    Serial.println(\"WiFi connected!\");\n    Serial.print(\"IP address: \");\n    Serial.println(WiFi.localIP());\n  } else {\n    Serial.println(\"Failed to connect to WiFi\");\n  }\n}\n\nvoid setupWebServer() {\n  server.on(\"/\", HTTP_GET, handleRoot);\n  server.on(\"/control\", HTTP_POST, handleControl);\n  server.on(\"/status\", HTTP_GET, handleStatus);\n  server.on(\"/patterns\", HTTP_GET, handlePatterns);\n  \n  server.on(\"/style.css\", []() {\n    server.send(200, \"text/css\", getCSS());\n  });\n  \n  server.on(\"/script.js\", []() {\n    server.send(200, \"application/javascript\", getJavaScript());\n  });\n  \n  server.begin();\n}\n#endif\n\nvoid loop() {\n#if defined(ESP32)\n  if (ENABLE_WEB_CONTROL) {\n    server.handleClient();\n  }\n#endif\n  \n  if (animationRunning) {\n    updateAnimation();\n  }\n  \n  delay(10);\n}\n\nvoid updateAnimation() {\n  unsigned long currentTime = millis();\n  unsigned long updateInterval = 1000 / currentSpeed;\n  \n  if (currentTime - lastUpdateTime >= updateInterval) {\n    lastUpdateTime = currentTime;\n    \n    if (currentPattern == \"rainbow\") {\n      rainbow();\n    } else if (currentPattern == \"chase\") {\n      chase(CRGB::Blue); // Default blue for chase\n    } else if (currentPattern == \"fade\") {\n      fade(CRGB::Red); // Default red for fade\n    } else if (currentPattern == \"sparkle\") {\n      sparkle(CRGB::White); // Default white for sparkle\n    } else if (currentPattern == \"color_wipe\") {\n      colorWipe(CRGB::Green);\n    } else if (currentPattern == \"theater_chase\") {\n      theaterChase(CRGB::Purple);\n    } else if (currentPattern == \"scanner\") {\n      scanner(CRGB::Orange);\n    } else if (currentPattern == \"solid\") {\n      solidColor(CRGB::Yellow);\n    }\n    \n    FastLED.show();\n  }\n}\n\nvoid rainbow() {\n  fill_rainbow(leds, NUM_LEDS, currentHue++, 7);\n}\n\nvoid chase(CRGB color) {\n  // Clear all LEDs\n  fill_solid(leds, NUM_LEDS, CRGB::Black);\n  \n  // Set chase position\n  leds[chasePosition] = color;\n  \n  // Move to next position\n  chasePosition = (chasePosition + 1) % NUM_LEDS;\n}\n\nvoid fade(CRGB color) {\n  // Calculate fade brightness\n  uint8_t fadeBrightness = (sin8(fadePosition * 255 / NUM_LEDS) + 128) * currentBrightness / 255;\n  \n  // Fill all LEDs with fade effect\n  fill_solid(leds, NUM_LEDS, color);\n  FastLED.setBrightness(fadeBrightness);\n  \n  fadePosition = (fadePosition + 1) % NUM_LEDS;\n}\n\nvoid sparkle(CRGB color) {\n  // Clear all LEDs\n  fill_solid(leds, NUM_LEDS, CRGB::Black);\n  \n  // Add random sparkles\n  for (int i = 0; i < NUM_LEDS / 10; i++) {\n    if (random8() < 50) { // 20% chance to sparkle\n      leds[random8(NUM_LEDS)] = color;\n    }\n  }\n}\n\nvoid colorWipe(CRGB color) {\n  // Wipe color across the strip\n  if (colorWipePosition < NUM_LEDS) {\n    leds[colorWipePosition] = color;\n    colorWipePosition++;\n  } else {\n    colorWipePosition = 0; // Reset for next wipe\n  }\n}\n\nvoid theaterChase(CRGB color) {\n  // Theater chase effect\n  for (int i = 0; i < NUM_LEDS; i++) {\n    if ((i + theaterChaseStep) % 3 == 0) {\n      leds[i] = color;\n    } else {\n      leds[i] = CRGB::Black;\n    }\n  }\n  \n  theaterChaseStep = (theaterChaseStep + 1) % 3;\n}\n\nvoid scanner(CRGB color) {\n  // Clear all LEDs\n  fill_solid(leds, NUM_LEDS, CRGB::Black);\n  \n  // Create scanner effect\n  for (int i = 0; i < 5; i++) {\n    int pos = scannerPosition - i;\n    if (pos >= 0 && pos < NUM_LEDS) {\n      leds[pos] = color;\n      leds[pos].fadeToBlackBy(64 * i);\n    }\n    \n    pos = scannerPosition + i;\n    if (pos >= 0 && pos < NUM_LEDS) {\n      leds[pos] = color;\n      leds[pos].fadeToBlackBy(64 * i);\n    }\n  }\n  \n  // Move scanner position\n  if (scannerDirection) {\n    scannerPosition++;\n    if (scannerPosition >= NUM_LEDS + 5) {\n      scannerPosition = NUM_LEDS + 4;\n      scannerDirection = false;\n    }\n  } else {\n    scannerPosition--;\n    if (scannerPosition <= -5) {\n      scannerPosition = -4;\n      scannerDirection = true;\n    }\n  }\n}\n\nvoid solidColor(CRGB color) {\n  fill_solid(leds, NUM_LEDS, color);\n}\n\nCRGB hexToCRGB(String hexColor) {\n  // Remove # if present\n  if (hexColor.startsWith(\"#\")) {\n    hexColor = hexColor.substring(1);\n  }\n  \n  // Parse hex color\n  long color = strtol(hexColor.c_str(), NULL, 16);\n  \n  return CRGB((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF);\n}\n\n#if defined(ESP32)\nvoid handleRoot() {\n  String html = getHTMLHeader();\n  html += getControlPanel();\n  html += getHTMLFooter();\n  server.send(200, \"text/html\", html);\n}\n\nvoid handleControl() {\n  String pattern = server.arg(\"pattern\");\n  String color = server.arg(\"color\");\n  String speed = server.arg(\"speed\");\n  String brightness = server.arg(\"brightness\");\n  \n  bool changed = false;\n  \n  if (pattern.length() > 0) {\n    currentPattern = pattern;\n    changed = true;\n    \n    // Reset animation variables when pattern changes\n    chasePosition = 0;\n    fadePosition = 0;\n    sparklePosition = 0;\n    scannerPosition = 0;\n    scannerDirection = true;\n    colorWipePosition = 0;\n    theaterChaseStep = 0;\n    theaterChasePosition = 0;\n    \n    Serial.print(\"Pattern changed to: \");\n    Serial.println(pattern);\n  }\n  \n  if (speed.length() > 0) {\n    int newSpeed = speed.toInt();\n    if (newSpeed >= 1 && newSpeed <= 10) {\n      currentSpeed = newSpeed;\n      changed = true;\n      Serial.print(\"Speed changed to: \");\n      Serial.println(newSpeed);\n    }\n  }\n  \n  if (brightness.length() > 0) {\n    int newBrightness = brightness.toInt();\n    if (newBrightness >= 0 && newBrightness <= 255) {\n      currentBrightness = newBrightness;\n      FastLED.setBrightness(currentBrightness);\n      changed = true;\n      Serial.print(\"Brightness changed to: \");\n      Serial.println(newBrightness);\n    }\n  }\n  \n  // Send JSON response\n  StaticJsonDocument<200> doc;\n  doc[\"success\"] = true;\n  doc[\"pattern\"] = currentPattern;\n  doc[\"speed\"] = currentSpeed;\n  doc[\"brightness\"] = currentBrightness;\n  doc[\"numLeds\"] = NUM_LEDS;\n  \n  String response;\n  serializeJson(doc, response);\n  server.send(200, \"application/json\", response);\n}\n\nvoid handleStatus() {\n  StaticJsonDocument<300> doc;\n  doc[\"deviceName\"] = deviceName;\n  doc[\"pattern\"] = currentPattern;\n  doc[\"speed\"] = currentSpeed;\n  doc[\"brightness\"] = currentBrightness;\n  doc[\"numLeds\"] = NUM_LEDS;\n  doc[\"colorOrder\"] = COLOR_ORDER;\n  doc[\"uptime\"] = millis();\n  doc[\"animationRunning\"] = animationRunning;\n  \n  // Add custom patterns\n  JsonArray patterns = doc.createNestedArray(\"customPatterns\");\n  \n  // Add built-in patterns\n  JsonObject pattern1 = patterns.createNestedObject();\n  pattern1[\"name\"] = \"Rainbow\";\n  pattern1[\"type\"] = \"rainbow\";\n  pattern1[\"speed\"] = 5;\n  patterns.add(pattern1);\n  \n  JsonObject pattern2 = patterns.createNestedObject();\n  pattern2[\"name\"] = \"Chase\";\n  pattern2[\"type\"] = \"chase\";\n  pattern2[\"color\"] = \"#0000FF\";\n  pattern2[\"speed\"] = 7;\n  patterns.add(pattern2);\n  \n  JsonObject pattern3 = patterns.createNestedObject();\n  pattern3[\"name\"] = \"Fade\";\n  pattern3[\"type\"] = \"fade\";\n  pattern3[\"color\"] = \"#FF0000\";\n  pattern3[\"speed\"] = 3;\n  patterns.add(pattern3);\n  \n  String response;\n  serializeJson(doc, response);\n  server.send(200, \"application/json\", response);\n}\n\nvoid handlePatterns() {\n  StaticJsonDocument<200> doc;\n  JsonArray patterns = doc.createNestedArray(\"patterns\");\n  \n  // Add all available patterns\n  JsonObject pattern1 = patterns.createNestedObject();\n  pattern1[\"name\"] = \"Rainbow\";\n  pattern1[\"type\"] = \"rainbow\";\n  pattern1[\"description\"] = \"Rainbow color cycling effect\";\n  patterns.add(pattern1);\n  \n  JsonObject pattern2 = patterns.createNestedObject();\n  pattern2[\"name\"] = \"Chase\";\n  pattern2[\"type\"] = \"chase\";\n  pattern2[\"description\"] = \"LED chase effect\";\n  pattern2[\"color\"] = \"#0000FF\";\n  patterns.add(pattern2);\n  \n  JsonObject pattern3 = patterns.createNestedObject();\n  pattern3[\"name\"] = \"Fade\";\n  pattern3[\"type\"] = \"fade\";\n  pattern3[\"description\"] = \"Fade in/out effect\";\n  pattern3[\"color\"] = \"#FF0000\";\n  patterns.add(pattern3);\n  \n  JsonObject pattern4 = patterns.createNestedObject();\n  pattern4[\"name\"] = \"Sparkle\";\n  pattern4[\"type\"] = \"sparkle\";\n  pattern4[\"description\"] = \"Random sparkle effect\";\n  pattern4[\"color\"] = \"#FFFFFF\";\n  patterns.add(pattern4);\n  \n  JsonObject pattern5 = patterns.createNestedObject();\n  pattern5[\"name\"] = \"Color Wipe\";\n  pattern5[\"type\"] = \"color_wipe\";\n  pattern5[\"description\"] = \"Color wipe across strip\";\n  pattern5[\"color\"] = \"#00FF00\";\n  patterns.add(pattern5);\n  \n  JsonObject pattern6 = patterns.createNestedObject();\n  pattern6[name\"] = \"Theater Chase\";\n  pattern6[\"type\"] = \"theater_chase\";\n  pattern6[\"description\"] = \"Theater chase effect\";\n  pattern6[\"color\"] = \"#800080\";\n  patterns.add(pattern6);\n  \n  JsonObject pattern7 = patterns.createNestedObject();\n  pattern7[\"name\"] = \"Scanner\";\n  pattern7[\"type\"] = \"scanner\";\n  pattern7[\"description\"] = \"Scanner effect\";\n  pattern7[\"color\"] = \"#FFA500\";\n  patterns.add(pattern7);\n  \n  JsonObject pattern8 = patterns.createNestedObject();\n  pattern8[\"name\"] = \"Solid Color\";\n  pattern8[\"type\"] = \"solid\";\n  pattern8[\"description\"] = \"Solid color fill\";\n  pattern8[\"color\"] = \"#FFFF00\";\n  patterns.add(pattern8);\n  \n  String response;\n  serializeJson(doc, response);\n  server.send(200, \"application/json\", response);\n}\n\nString getHTMLHeader() {\n  return R\"(<!DOCTYPE html>\n<html>\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>)\" + String(deviceName) + R\"(</title>\n    <link rel=\"stylesheet\" href=\"/style.css\">\n</head>\n<body>)\";\n}\n\nString getHTMLFooter() {\n  return R\"(</body>\n<script src=\"/script.js\"></script>\n</html>)\";\n}\n\nString getControlPanel() {\n  String panel = R\"(<div class='container'>\n    <h1>)\" + String(deviceName) + R\"(</h1>\n    \n    <div class='status-panel'>\n        <div class='status-item'>\n            <span class='label'>Pattern:</span>\n            <span class='value' id='current-pattern'>Rainbow</span>\n        </div>\n        <div class='status-item'>\n            <span class='label'>Speed:</span>\n            <span class='value' id='current-speed'>5</span>\n        </div>\n        <div class='status-item'>\n            <span class='label'>Brightness:</span>\n            <span class='value' id='current-brightness'>128</span>\n        </div>\n        <div class='status-item'>\n            <span class='label'>LED Count:</span>\n            <span class='value'>)\" + String(NUM_LEDS) + R\"(</span>\n        </div>\n    </div>\n    \n    <div class='control-panel'>\n        <h2>Pattern Control</h2>\n        \n        <div class='pattern-buttons'>)\";\n  \n  // Add pattern buttons\n  panel += \"<button class='pattern-btn active' onclick='setPattern(\\\"rainbow\\\")'>Rainbow</button>\";\n  panel += \"<button class='pattern-btn' onclick='setPattern(\\\"chase\\\")'>Chase</button>\";\n  panel += \"<button class='pattern-btn' onclick='setPattern(\\\"fade\\\")'>Fade</button>\";\n  panel += \"<button class='pattern-btn' onclick='setPattern(\\\"sparkle\\\")'>Sparkle</button>\";\n  panel += \"<button class='pattern-btn' onclick='setPattern(\\\"color_wipe\\\")'>Color Wipe</button>\";\n  panel += \"<button class='pattern-btn' onclick='setPattern(\\\"theater_chase\\\")'>Theater Chase</button>\";\n  panel += \"<button class='pattern-btn' onclick='setPattern(\\\"scanner\\\")'>Scanner</button>\";\n  panel += \"<button class='pattern-btn' onclick='setPattern(\\\"solid\\\")'>Solid</button>\";\n  \n  panel += R\"(</div>\n        \n        <div class='control-sliders'>\n            <div class='slider-control'>\n                <label for='speed-slider'>Speed: <span id='speed-value'>5</span></label>\n                <input type='range' id='speed-slider' min='1' max='10' value='5' class='slider'>\n            </div>\n            \n            <div class='slider-control'>\n                <label for='brightness-slider'>Brightness: <span id='brightness-value'>128</span></label>\n                <input type='range' id='brightness-slider' min='0' max='255' value='128' class='slider'>\n            </div>\n        </div>\n        \n        <div class='control-buttons'>\n            <button class='control-btn' onclick='toggleAnimation()'>Pause</button>\n            <button class='control-btn' onclick='clearStrip()'>Clear</button>\n            <button class='control-btn' onclick='randomPattern()'>Random</button>\n        </div>\n    </div>\n    \n    <div class='info-panel'>\n        <h3>System Information</h3>\n        <div class='info-item'>\n            <span class='label'>LED Count:</span>\n            <span class='value'>)\" + String(NUM_LEDS) + R\"(</span>\n        </div>\n        <div class='info-item'>\n            <span class='label'>Color Order:</span>\n            <span class='value'>)\" + String(COLOR_ORDER) + R\"(</span>\n        </div>\n        <div class='info-item'>\n            <span class='label'>Web Control:</span>\n            <span class='value'>)\" + String(ENABLE_WEB_CONTROL ? \"Enabled\" : \"Disabled\") + R\"(</span>\n        </div>\n    </div>\n</div>)\";\n  \n  return panel;\n}\n\nString getJavaScript() {\n  return R\"(let currentPattern = 'rainbow';\nlet currentSpeed = 5;\nlet currentBrightness = 128;\nlet animationRunning = true;\n\nfunction updateStatus() {\n  fetch('/status')\n    .then(response => response.json())\n    .then(data => {\n      currentPattern = data.pattern;\n      currentSpeed = data.speed;\n      currentBrightness = data.brightness;\n      animationRunning = data.animationRunning;\n      \n      document.getElementById('current-pattern').textContent = currentPattern.charAt(0).toUpperCase() + currentPattern.slice(1);\n      document.getElementById('current-speed').textContent = currentSpeed;\n      document.getElementById('current-brightness').textContent = currentBrightness;\n      \n      // Update active pattern button\n      document.querySelectorAll('.pattern-btn').forEach(btn => {\n        btn.classList.remove('active');\n        if (btn.textContent.toLowerCase() === currentPattern.toLowerCase()) {\n          btn.classList.add('active');\n        }\n      });\n      \n      // Update sliders\n      document.getElementById('speed-slider').value = currentSpeed;\n      document.getElementById('speed-value').textContent = currentSpeed;\n      document.getElementById('brightness-slider').value = currentBrightness;\n      document.getElementById('brightness-value').textContent = currentBrightness;\n    })\n    .catch(error => console.error('Status update error:', error));\n}\n\nfunction setPattern(pattern) {\n  fetch('/control', {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/x-www-form-urlencoded',\n    },\n    body: 'pattern=' + pattern\n  })\n  .then(response => response.json())\n  .then(data => {\n    if (data.success) {\n      updateStatus();\n    } else {\n      console.error('Error setting pattern:', data.error);\n    }\n  })\n  .catch(error => console.error('Pattern control error:', error));\n}\n\nfunction updateControls() {\n  const speed = document.getElementById('speed-slider').value;\n  const brightness = document.getElementById('brightness-slider').value;\n  \n  fetch('/control', {\n    method: 'POST',\n    headers: {\n      'content-type': 'application/x-www-form-urlencoded',\n    },\n    body: 'speed=' + speed + '&brightness=' + brightness\n  })\n  .then(response => response.json())\n  .then(data => {\n    if (data.success) {\n      updateStatus();\n    }\n  })\n  .catch(error => console.error('Control update error:', error));\n}\n\nfunction toggleAnimation() {\n  animationRunning = !animationRunning;\n  const btn = event.target;\n  btn.textContent = animationRunning ? 'Pause' : 'Resume';\n}\n\nfunction clearStrip() {\n  fetch('/control', {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/x-www-form-urlencoded',\n    },\n    body: 'pattern=solid&color=#000000'\n  })\n  .then(response => response.json())\n  .catch(error => console.error('Clear error:', error));\n}\n\nfunction randomPattern() {\n  const patterns = ['rainbow', 'chase', 'fade', 'sparkle', 'color_wipe', 'theater_chase', 'scanner', 'solid'];\n  const randomIndex = Math.floor(Math.random() * patterns.length);\n  setPattern(patterns[randomIndex]);\n}\n\n// Event listeners\ndocument.getElementById('speed-slider').addEventListener('input', function(e) {\n  document.getElementById('speed-value').textContent = e.target.value;\n  updateControls();\n});\n\ndocument.getElementById('brightness-slider').addEventListener('input', function(e) {\n  document.getElementById('brightness-value').textContent = e.target.value;\n  updateControls();\n});\n\n// Auto-update status every 2 seconds\nsetInterval(updateStatus, 2000);)\";\n}\n\nString getCSS() {\n  return R\"(* {\n    margin: 0;\n    padding: 0;\n    box-sizing: border-box;\n  }\n  \n  body {\n    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n    min-height: 100vh;\n    color: #333;\n  }\n  \n  .container {\n    max-width: 800px;\n    margin: 0 auto;\n    padding: 20px;\n  }\n  \n  h1 {\n    text-align: center;\n    color: white;\n    margin-bottom: 30px;\n    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);\n  }\n  \n  .status-panel {\n    background: white;\n    border-radius: 15px;\n    padding: 20px;\n    margin-bottom: 20px;\n    box-shadow: 0 8px 32px rgba(0,0,0,0.1);\n    display: grid;\n    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));\n    gap: 15px;\n  }\n  \n  .status-item {\n    display: flex;\n    justify-content: space-between;\n    align-items: center;\n  }\n  \n  .label {\n    font-weight: 600;\n    color: #666;\n  }\n  \n  .value {\n    font-weight: bold;\n    color: #333;\n    padding: 4px 8px;\n    background: #f0f0f0;\n    border-radius: 4px;\n  }\n  \n  .control-panel {\n    background: white;\n    border-radius: 15px;\n    padding: 25px;\n    margin-bottom: 20px;\n    box-shadow: 0 8px 32px rgba(0,0,0,0.1);\n  }\n  \n  .control-panel h2 {\n    margin-top: 0;\n    color: #333;\n  }\n  \n  .pattern-buttons {\n    display: grid;\n    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));\n    gap: 10px;\n    margin-bottom: 20px;\n  }\n  \n  .pattern-btn {\n    padding: 12px 16px;\n    border: none;\n    border-radius: 8px;\n    background: #667eea;\n    color: white;\n    font-weight: bold;\n    cursor: pointer;\n    transition: all 0.3s ease;\n  }\n  \n  .pattern-btn:hover {\n    background: #5a67d8;\n    transform: scale(1.05);\n  }\n  \n  .pattern-btn.active {\n    background: #4CAF50;\n  }\n  \n  .control-sliders {\n    margin-bottom: 20px;\n  }\n  \n  .slider-control {\n    margin-bottom: 15px;\n  }\n  \n  .slider-control label {\n    display: block;\n    margin-bottom: 10px;\n    font-weight: 600;\n    color: #666;\n  }\n  \n  .slider {\n    width: 100%;\n    height: 8px;\n    border-radius: 4px;\n    background: #ddd;\n    outline: none;\n    -webkit-appearance: none;\n  }\n  \n  .slider::-webkit-slider-thumb {\n    -webkit-appearance: none;\n    appearance: none;\n    width: 24px;\n    height: 24px;\n    border-radius: 50%;\n    background: #667eea;\n    cursor: pointer;\n  }\n  \n  .slider::-moz-range-thumb {\n    width: 24px;\n    height: 24px;\n    border-radius: 50%;\n    background: #667eea;\n    cursor: pointer;\n    border: none;\n  }\n  \n  .control-buttons {\n    display: flex;\n    gap: 10px;\n  }\n  \n  .control-btn {\n    flex: 1;\n    padding: 12px 20px;\n    border: none;\n    border-radius: 8px;\n    background: #667eea;\n    color: white;\n    font-weight: bold;\n    cursor: pointer;\n    transition: all 0.3s ease;\n  }\n  \n  .control-btn:hover {\n    background: #5a67d8;\n    transform: scale(1.05);\n  }\n  \n  .info-panel {\n    background: white;\n    border-radius: 15px;\n    padding: 20px;\n    box-shadow: 0 8px 32px rgba(0,0,0,0.1);\n  }\n  \n  .info-panel h3 {\n    margin-top: 0;\n    color: #333;\n  }\n  \n  .info-item {\n    display: flex;\n    justify-content: space-between;\n    margin-bottom: 10px;\n  }\n})\";\n}\n#endif"
+      }
+    },
+    {
+      "type": "wiring_diagram",
+      "path": "led_strip_wiring.png",
+      "metadata": {
+        "description": "Wiring diagram for LED strip with microcontroller",
+        "connections": [
+          {
+            "from": "Arduino 5V",
+            "to": "LED Strip 5V",
+            "wire_color": "red"
+          },
+          {
+            "from": "Arduino GND",
+            "to": "LED Strip GND",
+            "wire_color": "black"
+          },
+          {
+            "from": "Arduino Digital Pin {{.ledPin}}",
+            "to": "LED Strip Data In",
+            "wire_color": "green"
+          },
+          {
+            "from": "Arduino 5V",
+            "to": "Capacitor +",
+            "wire_color": "red"
+          },
+          {
+            "from": "Capacitor -",
+            "to": "LED Strip GND",
+            "wire_color": "black"
+          }
+        ]
+      }
+    },
+    {
+      "type": "documentation",
+      "path": "README.md",
+      "metadata": {
+        "content": "# LED Strip Animation Controller with Pattern Configuration\n\n## Overview\nThis template implements an advanced LED strip animation controller with multiple built-in patterns and web-based control interface. Perfect for decorative lighting, ambient effects, and visual displays.\n\n## Features\n- Multiple animation patterns (Rainbow, Chase, Fade, Sparkle, etc.)\n- Web-based control interface (ESP32)\n- Real-time pattern switching\n- Adjustable speed and brightness\n- Configurable LED count and color order\n- JSON API for integration\n- Mobile-responsive web interface\n- Pattern customization support\n\n## Built-in Patterns\n- **Rainbow**: Smooth rainbow color cycling\n- **Chase**: LED chase effect with selectable color\n- **Fade**: Fade in/out effect with breathing animation\n- **Sparkle**: Random sparkle effect\n- **Color Wipe**: Color wipe across the strip\n- **Theater Chase**: Theater chase effect\n- **Scanner**: Scanner/Knight rider effect\n- **Solid**: Solid color fill\n\n## Web Interface Features\n- **Pattern Selection**: Quick access to all patterns\n- **Speed Control**: Adjustable animation speed (1-10)\n- **Brightness Control**: Global brightness adjustment (0-255)\n- **Real-time Status**: Current pattern and settings display\n- **Pattern Buttons**: Visual pattern selection\n- **Control Sliders**: Intuitive speed and brightness control\n- **Action Buttons**: Pause, clear, and random pattern selection\n\n## Configuration Options\n- **LED Pin**: Data pin for LED strip (default: 6)\n- **LED Count**: Number of LEDs (1-300, default: 60)\n- **Brightness**: Initial brightness (0-255, default: 128)\n- **Color Order**: LED strip color order (RGB/GRB/BRG, default: GRB)\n- **Animation Speed**: Default speed multiplier (1-10, default: 5)\n- **Web Control**: Enable/disable web interface\n- **Custom Patterns**: User-defined patterns\n\n## Power Requirements\n- **Voltage**: 5V DC for most LED strips\n- **Current**: ~60mA per meter for WS2812B LEDs\n- **Power Calculation**: LED Count × 60mA × Voltage\n- **Capacitor**: 1000µF capacitor recommended for power injection\n\n## Wiring\n- LED Strip 5V → Arduino 5V\n- LED Strip GND → Arduino GND\n- LED Strip Data In → Arduino Digital Pin {{.ledPin}}\n- Capacitor (1000µF) → Parallel to LED Strip power connections\n\n**Power Injection for Long Strips**:\n- Every 1-2 meters, inject power from separate 5V supply\n- Use appropriate gauge wire for current capacity\n- Add capacitors at injection points\n\n## API Endpoints (ESP32)\n- `GET /` - Main web interface\n- `POST /control` - Control pattern, speed, and brightness\n- `GET /status` - Get current status\n- `GET /patterns` - Get available patterns\n\n## Control API\nSend POST request to `/control`:\n```\npattern=rainbow&speed=5&brightness=128\n```\n\n## Response Format\n```json\n{\n  \"success\": true,\n  \"pattern\": \"rainbow\",\n  \"speed\": 5,\n  \"patterns\": 5,\n  \"brightness\": 128,\n  \"numLeds\": 60,\n  \"colorOrder\": \"GRB\"\n}\n```\n\n## Pattern Customization\nEach pattern can be customized:\n- **Color Selection**: Choose specific colors for patterns\n- **Speed Adjustment**: Individual speed control per pattern\n- **Brightness**: Global brightness affects all patterns\n- **LED Count**: Automatically adjusts to strip length\n\n## Use Cases\n- **Home Lighting**: Ambient lighting effects\n- **Event Lighting**: Party and event decorations\n- **Architectural Lighting**: Building and space illumination\n- **Signage**: Dynamic sign and display lighting\n- **Art Installations**: Creative lighting projects\n- **Stage Lighting**: Performance and theater lighting\n- **Holiday Decorations**: Seasonal lighting effects\n\n## Integration Options\n- **Sensor Integration**: Motion-activated patterns\n- **Time Scheduling**: Automated pattern changes\n- **Music Synchronization**: Audio-reactive lighting\n- **Voice Control**: Integration with voice assistants\n- **Mobile Apps**: Remote control applications\n- **IoT Platforms**: Integration with smart home systems\n\n## Dependencies\n- FastLED library v3.5.0\n- ArduinoJson v6.21.3\n- WiFi library (ESP32 built-in)\n- WebServer library (ESP32 built-in)\n\n## Troubleshooting\n- **LED Strip Not Working**: Check power supply and data connections\n- **Flickering Issues**: Add capacitor near power injection points\n- **Color Issues**: Verify color order configuration\n- **Web Interface Not Loading**: Check WiFi connection (ESP32)\n- **Slow Performance**: Reduce LED count or optimize code\n- **Power Issues**: Use adequate power supply and proper wire gauge\n\n## Advanced Features\n- **Multi-Strip Control**: Control multiple strips independently\n- **Synchronization**: Coordinate multiple controllers\n- **Real-time Data**: Display sensor data on LEDs\n- **Image Display**: Convert images to LED patterns\n- **Sound Reactive**: Audio visualization effects\n- **Network Sync**: Synchronize patterns across devices\n\n## Performance Specifications\n- **Update Rate**: 20-100Hz depending on pattern complexity\n- **Power Consumption**: 3.6W per meter at full brightness\n- **Response Time**: <100ms for pattern changes\n- **Memory Usage**: ~3KB for LED buffer + program\n- **Processor Load**: 10-30% depending on pattern complexity\n\n## Safety Considerations\n- **Power Supply**: Use appropriate power supply for LED count\n- **Heat Management**: Monitor for overheating with long strips\n- **Current Limits**: Don't exceed 3A per data line\n- **Voltage Regulation**: Use stable 5V power supply\n- **EMI Considerations**: Add filtering for sensitive applications\n\n## Maintenance\n- **Regular Inspection**: Check connections and power supply\n- **Cleaning**: Keep LED strip clean for optimal brightness\n- **Software Updates**: Update patterns and features\n- **Performance Monitoring**: Monitor for performance issues\n- **Backup Settings**: Save custom configurations"
+      }
+    }
+  ],
+  "wiring_spec": {
+    "components": [
+      {
+        "id": "arduino",
+        "type": "board",
+        "name": "Arduino Board",
+        "pins": [
+          {"number": "5V", "name": "5V", "type": "power"},
+          {"number": "GND", "name": "GND", "type": "ground"},
+          {"number": "{{.ledPin}}", "name": "D{{.ledPin}}", "type": "digital"}
+        ]
+      },
+      {
+        "id": "led-strip",
+        "type": "display",
+        "name": "WS2812B LED Strip",
+        "pins": [
+          {"number": "1", "name": "5V", "type": "power"},
+          {"number": "2", "name": "GND", "type": "ground"},
+          {"number": "3", "name": "Data In", "type": "digital"}
+        ]
+      },
+      {
+        "id": "capacitor",
+        "type": "component",
+        "name": "1000µF Capacitor",
+        "pins": [
+          {"number": "1", "name": "+", "type": "power"},
+          {"number": "2", "name": "-", "type": "ground"}
+        ]
+      }
+    ],
+    "connections": [
+      {
+        "from_component": "arduino",
+        "from_pin": "5V",
+        "to_component": "led-strip",
+        "to_pin": "1",
+        "wire_color": "red"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "GND",
+        "to_component": "led-strip",
+        "to_pin": "2",
+        "wire_color": "black"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "{{.ledPin}}",
+        "to_component": "led-strip",
+        "to_pin": "3",
+        "wire_color": "green"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "5V",
+        "to_component": "capacitor",
+        "to_pin": "1",
+        "wire_color": "red"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "GND",
+        "to_component": "capacitor",
+        "to_pin": "2",
+        "wire_color": "black"
+      }
+    ]
+  }
+}

@@ -1,0 +1,221 @@
+{
+  "id": "ultrasonic-distance-alerts",
+  "name": "Ultrasonic Distance Sensor with Threshold Alerts",
+  "version": "1.0.0",
+  "category": "sensing",
+  "description": "HC-SR04 ultrasonic distance sensor with configurable threshold alerts and LED indicators",
+  "author": "ATHENA Team",
+  "boards_supported": ["arduino:avr:uno", "arduino:avr:nano", "arduino:avr:mega"],
+  "libraries": [
+    {
+      "name": "NewPing",
+      "version": "1.9.6"
+    }
+  ],
+  "schema": {
+    "type": "object",
+    "properties": {
+      "triggerPin": {
+        "type": "integer",
+        "title": "Trigger Pin",
+        "description": "Digital pin connected to HC-SR04 trigger",
+        "minimum": 2,
+        "maximum": 13,
+        "default": 9
+      },
+      "echoPin": {
+        "type": "integer",
+        "title": "Echo Pin",
+        "description": "Digital pin connected to HC-SR04 echo",
+        "minimum": 2,
+        "maximum": 13,
+        "default": 10
+      },
+      "maxDistance": {
+        "type": "integer",
+        "title": "Maximum Distance",
+        "description": "Maximum measurable distance in cm",
+        "minimum": 50,
+        "maximum": 500,
+        "default": 200
+      },
+      "alertThreshold": {
+        "type": "integer",
+        "title": "Alert Threshold",
+        "description": "Distance threshold in cm to trigger alerts",
+        "minimum": 5,
+        "maximum": 200,
+        "default": 30
+      },
+      "ledPin": {
+        "type": "integer",
+        "title": "Alert LED Pin",
+        "description": "LED pin for visual alerts",
+        "minimum": 2,
+        "maximum": 13,
+        "default": 13
+      },
+      "buzzerPin": {
+        "type": "integer",
+        "title": "Buzzer Pin",
+        "description": "Buzzer pin for audible alerts (0 to disable)",
+        "minimum": 0,
+        "maximum": 13,
+        "default": 0
+      },
+      "readingInterval": {
+        "type": "integer",
+        "title": "Reading Interval",
+        "description": "Time between readings in milliseconds",
+        "minimum": 50,
+        "maximum": 5000,
+        "default": 100
+      }
+    },
+    "required": ["triggerPin", "echoPin", "alertThreshold"]
+  },
+  "parameters": {
+    "triggerPin": 9,
+    "echoPin": 10,
+    "maxDistance": 200,
+    "alertThreshold": 30,
+    "ledPin": 13,
+    "buzzerPin": 0,
+    "readingInterval": 100
+  },
+  "assets": [
+    {
+      "type": "code",
+      "path": "ultrasonic_distance_alerts.ino",
+      "metadata": {
+        "content": "#include <NewPing.h>\n\n// Ultrasonic Sensor Configuration\n#define TRIGGER_PIN {{.triggerPin}}\n#define ECHO_PIN {{.echoPin}}\n#define MAX_DISTANCE {{.maxDistance}} // Maximum distance we want to ping for (in centimeters)\n#define ALERT_THRESHOLD {{.alertThreshold}} // Alert threshold in cm\n#define ALERT_LED_PIN {{.ledPin}} // LED pin for visual alerts\n#define BUZZER_PIN {{.buzzerPin}} // Buzzer pin for audible alerts (0 = disabled)\n#define READING_INTERVAL {{.readingInterval}} // Milliseconds between readings\n\n// Create NewPing object\nNewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE);\n\n// Global variables\nunsigned long last_reading_time = 0;\nint last_distance = 0;\nbool alert_active = false;\nunsigned long alert_start_time = 0;\nconst unsigned long alert_duration = 5000; // Alert for 5 seconds\nint consecutive_alerts = 0;\nconst int max_consecutive_alerts = 3; // Reduce false positives\n\n// Function prototypes\nint get_distance();\nvoid handle_alert(int distance);\nvoid reset_alert();\nvoid beep(int duration_ms);\n\nvoid setup() {\n  Serial.begin(115200);\n  Serial.println(\"Ultrasonic Distance Sensor with Alerts Starting...\");\n  \n  // Initialize pins\n  pinMode(ALERT_LED_PIN, OUTPUT);\n  digitalWrite(ALERT_LED_PIN, LOW);\n  \n  if (BUZZER_PIN > 0) {\n    pinMode(BUZZER_PIN, OUTPUT);\n    digitalWrite(BUZZER_PIN, LOW);\n  }\n  \n  // Wait for sensor to stabilize\n  delay(1000);\n  \n  Serial.print(\"Configuration:\");\n  Serial.print(\" Trigger Pin: \");\n  Serial.print(TRIGGER_PIN);\n  Serial.print(\", Echo Pin: \");\n  Serial.print(ECHO_PIN);\n  Serial.print(\", Max Distance: \");\n  Serial.print(MAX_DISTANCE);\n  Serial.print(\"cm, Alert Threshold: \");\n  Serial.print(ALERT_THRESHOLD);\n  Serial.println(\"cm\");\n  \n  // Initial reading\n  int initial_distance = get_distance();\n  Serial.print(\"Initial distance: \");\n  Serial.print(initial_distance);\n  Serial.println(\"cm\");\n}\n\nvoid loop() {\n  unsigned long current_time = millis();\n  \n  // Take reading at specified interval\n  if (current_time - last_reading_time >= READING_INTERVAL) {\n    int distance = get_distance();\n    last_reading_time = current_time;\n    \n    // Only process valid readings\n    if (distance > 0 && distance <= MAX_DISTANCE) {\n      last_distance = distance;\n      \n      // Check for alert condition\n      if (distance <= ALERT_THRESHOLD) {\n        consecutive_alerts++;\n        handle_alert(distance);\n      } else {\n        consecutive_alerts = 0;\n        reset_alert();\n      }\n      \n      // Output to serial\n      Serial.print(\"Distance: \");\n      Serial.print(distance);\n      Serial.print(\"cm\");\n      if (alert_active) {\n        Serial.print(\" [ALERT]\");\n      }\n      Serial.println();\n    }\n  }\n  \n  // Handle alert timeout\n  if (alert_active && (current_time - alert_start_time >= alert_duration)) {\n    reset_alert();\n  }\n  \n  delay(10); // Small delay to prevent overwhelming the sensor\n}\n\nint get_distance() {\n  // Get distance in centimeters\n  int distance = sonar.ping_cm();\n  \n  // NewPing returns 0 for no echo (out of range)\n  if (distance == 0) {\n    distance = MAX_DISTANCE; // Treat as maximum distance\n  }\n  \n  return distance;\n}\n\nvoid handle_alert(int distance) {\n  // Only trigger alert after consecutive readings to reduce false positives\n  if (consecutive_alerts >= 2) {\n    if (!alert_active) {\n      // Start new alert\n      alert_active = true;\n      alert_start_time = millis();\n      \n      Serial.print(\"ALERT! Object detected at \");\n      Serial.print(distance);\n      Serial.println(\"cm\");\n      \n      // Turn on LED\n      digitalWrite(ALERT_LED_PIN, HIGH);\n      \n      // Sound buzzer if enabled\n      if (BUZZER_PIN > 0) {\n        beep(200); // Initial beep\n      }\n    } else {\n      // Continue alert - periodic beeps\n      if (BUZZER_PIN > 0) {\n        unsigned long alert_elapsed = millis() - alert_start_time;\n        if (alert_elapsed % 1000 < 200) { // Beep pattern: 200ms on, 800ms off\n          digitalWrite(BUZZER_PIN, HIGH);\n        } else {\n          digitalWrite(BUZZER_PIN, LOW);\n        }\n      }\n    }\n  }\n}\n\nvoid reset_alert() {\n  if (alert_active) {\n    Serial.println(\"Alert cleared\");\n  }\n  \n  alert_active = false;\n  digitalWrite(ALERT_LED_PIN, LOW);\n  \n  if (BUZZER_PIN > 0) {\n    digitalWrite(BUZZER_PIN, LOW);\n  }\n}\n\nvoid beep(int duration_ms) {\n  if (BUZZER_PIN > 0) {\n    digitalWrite(BUZZER_PIN, HIGH);\n    delay(duration_ms);\n    digitalWrite(BUZZER_PIN, LOW);\n  }\n}"
+      }
+    },
+    {
+      "type": "wiring_diagram",
+      "path": "ultrasonic_wiring.png",
+      "metadata": {
+        "description": "Wiring diagram for HC-SR04 ultrasonic sensor",
+        "connections": [
+          {
+            "from": "HC-SR04 VCC",
+            "to": "Arduino 5V",
+            "wire_color": "red"
+          },
+          {
+            "from": "HC-SR04 GND",
+            "to": "Arduino GND",
+            "wire_color": "black"
+          },
+          {
+            "from": "HC-SR04 Trigger",
+            "to": "Arduino Digital Pin {{.triggerPin}}",
+            "wire_color": "yellow"
+          },
+          {
+            "from": "HC-SR04 Echo",
+            "to": "Arduino Digital Pin {{.echoPin}}",
+            "wire_color": "green"
+          },
+          {
+            "from": "LED Anode",
+            "to": "Arduino Digital Pin {{.ledPin}}",
+            "wire_color": "blue"
+          },
+          {
+            "from": "LED Cathode",
+            "to": "Arduino GND",
+            "wire_color": "black"
+          }
+        ]
+      }
+    },
+    {
+      "type": "documentation",
+      "path": "README.md",
+      "metadata": {
+        "content": "# Ultrasonic Distance Sensor with Threshold Alerts\n\n## Overview\nThis template implements an HC-SR04 ultrasonic distance sensor with configurable threshold alerts, LED indicators, and optional buzzer notifications.\n\n## Features\n- Distance measurement using HC-SR04 ultrasonic sensor\n- Configurable alert threshold\n- Visual alerts via LED\n- Optional audible alerts via buzzer\n- False positive filtering with consecutive readings\n- Serial output for debugging\n- Alert timeout and reset\n\n## Alert Behavior\n- Triggered when distance <= alert threshold\n- Requires 2 consecutive readings to activate (reduces false positives)\n- LED stays on for 5 seconds after last detection\n- Optional buzzer with periodic beeping during alert\n- Automatic reset when object moves away\n\n## Configuration Options\n- **Trigger Pin**: Digital pin for HC-SR04 trigger (default: 9)\n- **Echo Pin**: Digital pin for HC-SR04 echo (default: 10)\n- **Max Distance**: Maximum measurable distance in cm (default: 200)\n- **Alert Threshold**: Distance to trigger alerts in cm (default: 30)\n- **LED Pin**: LED pin for visual alerts (default: 13)\n- **Buzzer Pin**: Buzzer pin (0 to disable, default: 0)\n- **Reading Interval**: Time between readings in ms (default: 100)\n\n## Wiring\n- HC-SR04 VCC → Arduino 5V\n- HC-SR04 GND → Arduino GND\n- HC-SR04 Trigger → Arduino Digital Pin {{.triggerPin}}\n- HC-SR04 Echo → Arduino Digital Pin {{.echoPin}}\n- LED Anode → Arduino Digital Pin {{.ledPin}} (with 220Ω resistor)\n- LED Cathode → Arduino GND\n- Buzzer + → Arduino Digital Pin {{.buzzerPin}} (if enabled)\n- Buzzer - → Arduino GND\n\n## Dependencies\n- NewPing library v1.9.6\n\n## Usage Examples\n\n### Parking Assistant\nSet alert threshold to 20cm for parking assistance.\n\n### Tank Level Monitor\nMount sensor above tank to monitor liquid level.\n\n### Presence Detector\nDetect when someone enters a room.\n\n## Troubleshooting\n- **Erratic readings**: Ensure power supply is stable and sensor is properly connected\n- **False alerts**: Increase consecutive alert requirement or adjust threshold\n- **No detection**: Check sensor orientation and ensure no obstacles in detection path"
+      }
+    }
+  ],
+  "wiring_spec": {
+    "components": [
+      {
+        "id": "arduino",
+        "type": "board",
+        "name": "Arduino Board",
+        "pins": [
+          {"number": "5V", "name": "5V", "type": "power"},
+          {"number": "GND", "name": "GND", "type": "ground"},
+          {"number": "{{.triggerPin}}", "name": "D{{.triggerPin}}", "type": "digital"},
+          {"number": "{{.echoPin}}", "name": "D{{.echoPin}}", "type": "digital"},
+          {"number": "{{.ledPin}}", "name": "D{{.ledPin}}", "type": "digital"}
+        ]
+      },
+      {
+        "id": "hc-sr04",
+        "type": "sensor",
+        "name": "HC-SR04 Ultrasonic Sensor",
+        "pins": [
+          {"number": "1", "name": "VCC", "type": "power"},
+          {"number": "2", "name": "Trigger", "type": "digital"},
+          {"number": "3", "name": "Echo", "type": "digital"},
+          {"number": "4", "name": "GND", "type": "ground"}
+        ]
+      },
+      {
+        "id": "led",
+        "type": "indicator",
+        "name": "Alert LED",
+        "pins": [
+          {"number": "1", "name": "Anode", "type": "digital"},
+          {"number": "2", "name": "Cathode", "type": "ground"}
+        ]
+      }
+    ],
+    "connections": [
+      {
+        "from_component": "arduino",
+        "from_pin": "5V",
+        "to_component": "hc-sr04",
+        "to_pin": "1",
+        "wire_color": "red"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "GND",
+        "to_component": "hc-sr04",
+        "to_pin": "4",
+        "wire_color": "black"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "{{.triggerPin}}",
+        "to_component": "hc-sr04",
+        "to_pin": "2",
+        "wire_color": "yellow"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "{{.echoPin}}",
+        "to_component": "hc-sr04",
+        "to_pin": "3",
+        "wire_color": "green"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "{{.ledPin}}",
+        "to_component": "led",
+        "to_pin": "1",
+        "wire_color": "blue"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "GND",
+        "to_component": "led",
+        "to_pin": "2",
+        "wire_color": "black"
+      }
+    ]
+  }
+}

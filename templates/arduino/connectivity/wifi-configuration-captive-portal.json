@@ -1,0 +1,248 @@
+{
+  "id": "wifi-configuration-captive-portal",
+  "name": "Wi-Fi Configuration with Captive Portal",
+  "version": "1.0.0",
+  "category": "connectivity",
+  "description": "Wi-Fi configuration system with captive portal for easy network setup",
+  "author": "ATHENA Team",
+  "boards_supported": ["esp32:esp32:devkitv1", "esp8266:esp8266:nodemcuv2"],
+  "libraries": [
+    {
+      "name": "WiFi",
+      "version": "2.0.0"
+    },
+    {
+      "name": "WebServer",
+      "version": "2.0.0"
+    },
+    {
+      "name": "DNSServer",
+      "version": "2.0.0"
+    },
+    {
+      "name": "EEPROM",
+      "version": "2.0.0"
+    },
+    {
+      "name": "ArduinoJson",
+      "version": "6.21.3"
+    }
+  ],
+  "schema": {
+    "type": "object",
+    "properties": {
+      "ledPin": {
+        "type": "integer",
+        "title": "Status LED Pin",
+        "description": "LED pin for status indication",
+        "minimum": 2,
+        "maximum": 16,
+        "default": 2
+      },
+      "buttonPin": {
+        "type": "integer",
+        "title": "Reset Button Pin",
+        "description": "Button pin for resetting Wi-Fi settings",
+        "minimum": 0,
+        "maximum": 16,
+        "default": 0
+      },
+      "portalTimeout": {
+        "type": "integer",
+        "title": "Captive Portal Timeout",
+        "description": "Captive portal timeout in minutes",
+        "minimum": 5,
+        "maximum": 30,
+        "default": 10
+      },
+      "connectionTimeout": {
+        "type": "integer",
+        "title": "Connection Timeout",
+        "description": "Wi-Fi connection timeout in seconds",
+        "minimum": 10,
+        "maximum": 60,
+        "default": 30
+      },
+      "maxRetries": {
+        "type": "integer",
+        "title": "Max Connection Retries",
+        "description": "Maximum connection retry attempts",
+        "minimum": 3,
+        "maximum": 10,
+        "default": 5
+      },
+      "deviceName": {
+        "type": "string",
+        "title": "Device Name",
+        "description": "Name for this Wi-Fi configuration device",
+        "default": "ATHENA-WiFi-Config"
+      },
+      "defaultSSID": {
+        "type": "string",
+        "title": "Default SSID",
+        "description": "Default SSID for captive portal",
+        "default": "ATHENA-Setup"
+      },
+      "enableAPFallback": {
+        "type": "boolean",
+        "title": "Enable AP Fallback",
+        "description": "Enable AP mode when Wi-Fi connection fails",
+        "default": true
+      },
+      "enableMDNS": {
+        "type": "boolean",
+        "title": "Enable mDNS",
+        "description": "Enable mDNS for local discovery",
+        "default": true
+      }
+    },
+    "required": ["ledPin", "buttonPin"]
+  },
+  "parameters": {
+    "ledPin": 2,
+    "buttonPin": 0,
+    "portalTimeout": 10,
+    "connectionTimeout": 30,
+    "maxRetries": 5,
+    "deviceName": "ATHENA-WiFi-Config",
+    "defaultSSID": "ATHENA-Setup",
+    "enableAPFallback": true,
+    "enableMDNS": true
+  },
+  "assets": [
+    {
+      "type": "code",
+      "path": "wifi_config_captive_portal.ino",
+      "metadata": {
+        "content": "#include <WiFi.h>\n#include <WebServer.h>\n#include <DNSServer.h>\n#include <EEPROM.h>\n#include <ArduinoJson.h>\n\n// Wi-Fi Configuration\n#define LED_PIN {{.ledPin}}\n#define BUTTON_PIN {{.buttonPin}}\n#define PORTAL_TIMEOUT {{.portalTimeout}} * 60 * 1000 // Convert to milliseconds\n#define CONNECTION_TIMEOUT {{.connectionTimeout}} * 1000\n#define MAX_RETRIES {{.maxRetries}}\n#define EEPROM_SIZE 512\n#define WIFI_SSID_ADDR 0\n#define WIFI_PASS_ADDR 100\n#define CONFIG_FLAG_ADDR 200\n\n// Global variables\nconst char* deviceName = \"{{.deviceName}}\";\nconst char* apSSID = \"{{.defaultSSID}}\";\nconst char* apPassword = \"athena123\";\n\nWiFiClient wifiClient;\nWebServer server(80);\nDNSServer dnsServer;\n\n// Wi-Fi configuration\nchar storedSSID[32] = \"\";\nchar storedPassword[64] = \"\";\nbool wifiConfigured = false;\nbool portalActive = false;\nunsigned long portalStartTime = 0;\nint connectionRetries = 0;\n\n// Status tracking\nenum WiFiStatus {\n  DISCONNECTED,\n  CONNECTING,\n  CONNECTED,\n  PORTAL_ACTIVE,\n  ERROR\n};\n\nWiFiStatus currentStatus = DISCONNECTED;\n\n// Function prototypes\nvoid setupWiFi();\nvoid startCaptivePortal();\nvoid stopCaptivePortal();\nvoid handleRoot();\nvoid handleScan();\nvoid handleConnect();\nvoid handleReset();\nvoid handleStatus();\nvoid updateStatusLED();\nvoid loadWiFiConfig();\nvoid saveWiFiConfig(const char* ssid, const char* password);\nvoid connectToWiFi();\nvoid checkButtonPress();\nvoid sendResponse(int code, const char* message, const char* data = \"\");\n\nvoid setup() {\n  Serial.begin(115200);\n  Serial.println(\"Wi-Fi Configuration with Captive Portal Starting...\");\n  \n  // Initialize pins\n  pinMode(LED_PIN, OUTPUT);\n  pinMode(BUTTON_PIN, INPUT_PULLUP);\n  \n  digitalWrite(LED_PIN, LOW);\n  \n  // Initialize EEPROM\n  EEPROM.begin(EEPROM_SIZE);\n  \n  // Load saved Wi-Fi configuration\n  loadWiFiConfig();\n  \n  Serial.print(\"Configuration loaded - Wi-Fi configured: \");\n  Serial.println(wifiConfigured ? \"Yes\" : \"No\");\n  \n  if (wifiConfigured) {\n    Serial.println(\"Attempting to connect to saved network...\");\n    connectToWiFi();\n  } else {\n    Serial.println(\"No Wi-Fi configuration found, starting captive portal...\");\n    startCaptivePortal();\n  }\n  \n  Serial.println(\"Setup completed!\");\n  Serial.println(\"Status LED patterns:\");\n  Serial.println(\"  - Solid: Connected to Wi-Fi\");\n  Serial.println(\"  - Blinking: Connecting/Portal Active\");\n  Serial.println(\"  - Fast blink: Error\");\n  Serial.println(\"Hold button for 3 seconds to reset Wi-Fi settings\");\n}\n\nvoid loop() {\n  // Check button press for reset\n  checkButtonPress();\n  \n  if (portalActive) {\n    // Handle captive portal\n    dnsServer.processNextRequest();\n    server.handleClient();\n    \n    // Check portal timeout\n    if (millis() - portalStartTime > PORTAL_TIMEOUT) {\n      Serial.println(\"Captive portal timeout\");\n      stopCaptivePortal();\n      \n      if (wifiConfigured) {\n        connectToWiFi();\n      }\n    }\n  } else if (currentStatus == CONNECTED) {\n    // Check Wi-Fi connection status\n    if (WiFi.status() != WL_CONNECTED) {\n      Serial.println(\"Wi-Fi connection lost\");\n      currentStatus = DISCONNECTED;\n      connectionRetries = 0;\n      \n      // Attempt to reconnect\n      connectToWiFi();\n    }\n  }\n  \n  updateStatusLED();\n  delay(100);\n}\n\nvoid setupWiFi() {\n  WiFi.mode(WIFI_STA);\n  WiFi.setAutoConnect(false);\n  WiFi.setAutoReconnect(true);\n  \n  {{#if .enableMDNS}}\n  // Enable mDNS\n  if (MDNS.begin(deviceName)) {\n    Serial.print(\"mDNS responder started: \");\n    Serial.println(deviceName);\n  }\n  {{/if}}\n}\n\nvoid startCaptivePortal() {\n  Serial.println(\"Starting captive portal...\");\n  \n  // Start AP mode\n  WiFi.mode(WIFI_AP);\n  WiFi.softAP(apSSID, apPassword);\n  \n  IPAddress apIP = WiFi.softAPIP();\n  Serial.print(\"AP IP address: \");\n  Serial.println(apIP);\n  \n  // Start DNS server for captive portal\n  dnsServer.start(53, apIP);\n  \n  // Setup web server routes\n  server.on(\"/\", HTTP_GET, handleRoot);\n  server.on(\"/scan\", HTTP_GET, handleScan);\n  server.on(\"/connect\", HTTP_POST, handleConnect);\n  server.on(\"/reset\", HTTP_POST, handleReset);\n  server.on(\"/status\", HTTP_GET, handleStatus);\n  \n  // Setup CORS headers\n  server.sendHeader(\"Access-Control-Allow-Origin\", \"*\");\n  server.sendHeader(\"Access-Control-Allow-Methods\", \"GET, POST, OPTIONS\");\n  server.sendHeader(\"Access-Control-Allow-Headers\", \"Content-Type\");\n  \n  server.begin();\n  \n  portalActive = true;\n  portalStartTime = millis();\n  currentStatus = PORTAL_ACTIVE;\n  \n  Serial.println(\"Captive portal started\");\n  Serial.print(\"Connect to: \");\n  Serial.println(apSSID);\n  Serial.print(\"Password: \");\n  Serial.println(apPassword);\n  Serial.print(\"Configuration URL: http://\");\n  Serial.println(apIP);\n}\n\nvoid stopCaptivePortal() {\n  Serial.println(\"Stopping captive portal...\");\n  \n  server.stop();\n  dnsServer.stop();\n  WiFi.softAPdisconnect(true);\n  \n  portalActive = false;\n  currentStatus = DISCONNECTED;\n  \n  Serial.println(\"Captive portal stopped\");\n}\n\nvoid handleRoot() {\n  String html = R\"(\n<!DOCTYPE html>\n<html>\n<head>\n  <title>ATHENA Wi-Fi Configuration</title>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <style>\n    body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }\n    .container { max-width: 500px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }\n    h1 { color: #333; text-align: center; margin-bottom: 30px; }\n    .form-group { margin-bottom: 20px; }\n    label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }\n    input[type=\"text\"], input[type=\"password\"], select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }\n    button { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }\n    button:hover { background: #0056b3; }\n    .scan-btn { background: #28a745; margin-bottom: 20px; }\n    .scan-btn:hover { background: #1e7e34; }\n    .reset-btn { background: #dc3545; margin-top: 20px; }\n    .reset-btn:hover { background: #c82333; }\n    .status { padding: 10px; border-radius: 5px; margin-bottom: 20px; }\n    .status.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }\n    .status.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }\n    .network-list { max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 20px; }\n    .network-item { padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; }\n    .network-item:hover { background: #f8f9fa; }\n    .signal-strength { float: right; color: #666; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <h1>🔧 ATHENA Wi-Fi Configuration</h1>\n    \n    <div id=\"status\"></div>\n    \n    <button class=\"scan-btn\" onclick=\"scanNetworks()\">📡 Scan Networks</button>\n    \n    <div id=\"networkList\" class=\"network-list\" style=\"display: none;\"></div>\n    \n    <form id=\"wifiForm\" onsubmit=\"connectWiFi(event)\">\n      <div class=\"form-group\">\n        <label for=\"ssid\">Network Name (SSID):</label>\n        <input type=\"text\" id=\"ssid\" name=\"ssid\" required placeholder=\"Enter Wi-Fi network name\">\n      </div>\n      \n      <div class=\"form-group\">\n        <label for=\"password\">Password:</label>\n        <input type=\"password\" id=\"password\" name=\"password\" placeholder=\"Enter Wi-Fi password\">\n      </div>\n      \n      <button type=\"submit\">🔗 Connect to Network</button>\n    </form>\n    \n    <button class=\"reset-btn\" onclick=\"resetSettings()\">🗑️ Reset Wi-Fi Settings</button>\n  </div>\n  \n  <script>\n    function scanNetworks() {\n      fetch('/scan')\n        .then(response => response.json())\n        .then(data => {\n          const networkList = document.getElementById('networkList');\n          networkList.innerHTML = '';\n          \n          if (data.networks && data.networks.length > 0) {\n            data.networks.forEach(network => {\n              const div = document.createElement('div');\n              div.className = 'network-item';\n              div.onclick = () => selectNetwork(network.ssid);\n              div.innerHTML = `\n                <strong>${network.ssid}</strong>\n                <span class=\"signal-strength\">${network.rssi} dBm</span>\n              `;\n              networkList.appendChild(div);\n            });\n            networkList.style.display = 'block';\n          } else {\n            networkList.innerHTML = '<div class=\"network-item\">No networks found</div>';\n            networkList.style.display = 'block';\n          }\n        })\n        .catch(error => {\n          showStatus('Error scanning networks: ' + error.message, 'error');\n        });\n    }\n    \n    function selectNetwork(ssid) {\n      document.getElementById('ssid').value = ssid;\n    }\n    \n    function connectWiFi(event) {\n      event.preventDefault();\n      \n      const ssid = document.getElementById('ssid').value;\n      const password = document.getElementById('password').value;\n      \n      if (!ssid) {\n        showStatus('Please enter a network name', 'error');\n        return;\n      }\n      \n      showStatus('Connecting to ' + ssid + '...', 'success');\n      \n      fetch('/connect', {\n        method: 'POST',\n        headers: {\n          'Content-Type': 'application/json',\n        },\n        body: JSON.stringify({ ssid: ssid, password: password })\n      })\n      .then(response => response.json())\n      .then(data => {\n        if (data.success) {\n          showStatus('Successfully connected to ' + ssid + '! Device will restart.', 'success');\n          setTimeout(() => {\n            window.location.href = '/status';\n          }, 3000);\n        } else {\n          showStatus('Connection failed: ' + data.message, 'error');\n        }\n      })\n      .catch(error => {\n        showStatus('Error: ' + error.message, 'error');\n      });\n    }\n    \n    function resetSettings() {\n      if (confirm('Are you sure you want to reset Wi-Fi settings?')) {\n        fetch('/reset', {\n          method: 'POST'\n        })\n        .then(response => response.json())\n        .then(data => {\n          showStatus('Wi-Fi settings reset! Device will restart.', 'success');\n          setTimeout(() => {\n            window.location.reload();\n          }, 3000);\n        })\n        .catch(error => {\n          showStatus('Error resetting settings: ' + error.message, 'error');\n        });\n      }\n    }\n    \n    function showStatus(message, type) {\n      const statusDiv = document.getElementById('status');\n      statusDiv.className = 'status ' + type;\n      statusDiv.textContent = message;\n      statusDiv.style.display = 'block';\n      \n      setTimeout(() => {\n        statusDiv.style.display = 'none';\n      }, 5000);\n    }\n    \n    // Auto-scan on page load\n    setTimeout(scanNetworks, 1000);\n  </script>\n</body>\n</html>\n)\";\n  \n  server.send(200, \"text/html\", html);\n}\n\nvoid handleScan() {\n  Serial.println(\"Scanning for Wi-Fi networks...\");\n  \n  int n = WiFi.scanNetworks();\n  \n  JsonDocument doc;\n  JsonArray networks = doc.createNestedArray(\"networks\");\n  \n  for (int i = 0; i < n; i++) {\n    JsonObject network = networks.createNestedObject();\n    network[\"ssid\"] = WiFi.SSID(i);\n    network[\"rssi\"] = WiFi.RSSI(i);\n    network[\"encryption\"] = (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? \"Open\" : \"Secured\";\n  }\n  \n  String response;\n  serializeJson(doc, response);\n  \n  server.send(200, \"application/json\", response);\n  \n  Serial.print(\"Found \");\n  Serial.print(n);\n  Serial.println(\" networks\");\n}\n\nvoid handleConnect() {\n  String body = server.arg(\"plain\");\n  \n  JsonDocument doc;\n  DeserializationError error = deserializeJson(doc, body);\n  \n  if (error) {\n    sendResponse(400, \"Invalid JSON\", \"\");\n    return;\n  }\n  \n  String ssid = doc[\"ssid\"];\n  String password = doc[\"password\"];\n  \n  if (ssid.length() == 0) {\n    sendResponse(400, \"SSID is required\", \"\");\n    return;\n  }\n  \n  Serial.print(\"Attempting to connect to: \");\n  Serial.println(ssid);\n  \n  // Stop captive portal\n  stopCaptivePortal();\n  \n  // Save configuration\n  saveWiFiConfig(ssid.c_str(), password.c_str());\n  \n  // Attempt to connect\n  WiFi.begin(ssid.c_str(), password.c_str());\n  \n  unsigned long startTime = millis();\n  while (WiFi.status() != WL_CONNECTED && millis() - startTime < CONNECTION_TIMEOUT) {\n    delay(500);\n    Serial.print(\".\");\n  }\n  \n  if (WiFi.status() == WL_CONNECTED) {\n    sendResponse(200, \"Connection successful\", \"\");\n    Serial.println(\"\\nWi-Fi connected successfully!\");\n    \n    // Restart to apply configuration\n    delay(1000);\n    ESP.restart();\n  } else {\n    sendResponse(400, \"Connection failed\", \"\");\n    Serial.println(\"\\nWi-Fi connection failed!\");\n    \n    // Restart captive portal\n    startCaptivePortal();\n  }\n}\n\nvoid handleReset() {\n  Serial.println(\"Resetting Wi-Fi configuration...\");\n  \n  // Clear EEPROM\n  for (int i = 0; i < EEPROM_SIZE; i++) {\n    EEPROM.write(i, 0);\n  }\n  EEPROM.commit();\n  \n  sendResponse(200, \"Settings reset successfully\", \"\");\n  \n  // Restart to apply changes\n  delay(1000);\n  ESP.restart();\n}\n\nvoid handleStatus() {\n  JsonDocument doc;\n  \n  doc[\"device\"] = deviceName;\n  doc[\"status\"] = portalActive ? \"Portal Active\" : (WiFi.status() == WL_CONNECTED ? \"Connected\" : \"Disconnected\");\n  \n  if (WiFi.status() == WL_CONNECTED) {\n    doc[\"ssid\"] = WiFi.SSID();\n    doc[\"ip\"] = WiFi.localIP().toString();\n    doc[\"rssi\"] = WiFi.RSSI();\n  }\n  \n  String response;\n  serializeJson(doc, response);\n  \n  server.send(200, \"application/json\", response);\n}\n\nvoid updateStatusLED() {\n  static unsigned long lastBlinkTime = 0;\n  static bool ledState = false;\n  \n  switch (currentStatus) {\n    case CONNECTED:\n      digitalWrite(LED_PIN, HIGH); // Solid on when connected\n      break;\n      \n    case CONNECTING:\n    case PORTAL_ACTIVE:\n      // Slow blink when connecting or portal active\n      if (millis() - lastBlinkTime > 1000) {\n        ledState = !ledState;\n        digitalWrite(LED_PIN, ledState);\n        lastBlinkTime = millis();\n      }\n      break;\n      \n    case ERROR:\n      // Fast blink when error\n      if (millis() - lastBlinkTime > 200) {\n        ledState = !ledState;\n        digitalWrite(LED_PIN, ledState);\n        lastBlinkTime = millis();\n      }\n      break;\n      \n    default:\n      digitalWrite(LED_PIN, LOW); // Off when disconnected\n      break;\n  }\n}\n\nvoid loadWiFiConfig() {\n  // Check if configuration exists\n  bool configFlag = EEPROM.read(CONFIG_FLAG_ADDR) == 0xAA;\n  \n  if (configFlag) {\n    // Load SSID\n    for (int i = 0; i < 32; i++) {\n      storedSSID[i] = EEPROM.read(WIFI_SSID_ADDR + i);\n      if (storedSSID[i] == 0) break;\n    }\n    \n    // Load password\n    for (int i = 0; i < 64; i++) {\n      storedPassword[i] = EEPROM.read(WIFI_PASS_ADDR + i);\n      if (storedPassword[i] == 0) break;\n    }\n    \n    wifiConfigured = true;\n  } else {\n    wifiConfigured = false;\n  }\n}\n\nvoid saveWiFiConfig(const char* ssid, const char* password) {\n  // Save SSID\n  for (int i = 0; i < strlen(ssid); i++) {\n    EEPROM.write(WIFI_SSID_ADDR + i, ssid[i]);\n  }\n  EEPROM.write(WIFI_SSID_ADDR + strlen(ssid), 0); // Null terminator\n  \n  // Save password\n  for (int i = 0; i < strlen(password); i++) {\n    EEPROM.write(WIFI_PASS_ADDR + i, password[i]);\n  }\n  EEPROM.write(WIFI_PASS_ADDR + strlen(password), 0); // Null terminator\n  \n  // Set configuration flag\n  EEPROM.write(CONFIG_FLAG_ADDR, 0xAA);\n  \n  EEPROM.commit();\n  \n  // Update local variables\n  strcpy(storedSSID, ssid);\n  strcpy(storedPassword, password);\n  wifiConfigured = true;\n  \n  Serial.println(\"Wi-Fi configuration saved to EEPROM\");\n}\n\nvoid connectToWiFi() {\n  if (!wifiConfigured) {\n    Serial.println(\"No Wi-Fi configuration available\");\n    {{#if .enableAPFallback}}\n    startCaptivePortal();\n    {{/if}}\n    return;\n  }\n  \n  if (connectionRetries >= MAX_RETRIES) {\n    Serial.println(\"Maximum connection retries reached\");\n    currentStatus = ERROR;\n    \n    {{#if .enableAPFallback}}\n    Serial.println(\"Starting AP fallback mode\");\n    startCaptivePortal();\n    {{/if}}\n    return;\n  }\n  \n  Serial.print(\"Connecting to Wi-Fi (attempt \");\n  Serial.print(connectionRetries + 1);\n  Serial.print(\"/\");\n  Serial.print(MAX_RETRIES);\n  Serial.println(\"): \");\n  Serial.println(storedSSID);\n  \n  currentStatus = CONNECTING;\n  \n  setupWiFi();\n  WiFi.begin(storedSSID, storedPassword);\n  \n  unsigned long startTime = millis();\n  while (WiFi.status() != WL_CONNECTED && millis() - startTime < CONNECTION_TIMEOUT) {\n    delay(500);\n    Serial.print(\".\");\n  }\n  \n  if (WiFi.status() == WL_CONNECTED) {\n    Serial.println(\"\\nWi-Fi connected successfully!\");\n    Serial.print(\"IP address: \");\n    Serial.println(WiFi.localIP());\n    \n    currentStatus = CONNECTED;\n    connectionRetries = 0;\n  } else {\n    Serial.println(\"\\nWi-Fi connection failed\");\n    currentStatus = ERROR;\n    connectionRetries++;\n    \n    // Try again after delay\n    delay(5000);\n    connectToWiFi();\n  }\n}\n\nvoid checkButtonPress() {\n  static unsigned long buttonPressTime = 0;\n  static bool buttonPressed = false;\n  \n  bool currentState = digitalRead(BUTTON_PIN) == LOW;\n  \n  if (currentState && !buttonPressed) {\n    // Button just pressed\n    buttonPressTime = millis();\n    buttonPressed = true;\n  } else if (!currentState && buttonPressed) {\n    // Button just released\n    unsigned long pressDuration = millis() - buttonPressTime;\n    \n    if (pressDuration > 3000) { // 3 seconds\n      Serial.println(\"Reset button pressed - resetting Wi-Fi settings\");\n      \n      // Clear configuration\n      for (int i = 0; i < EEPROM_SIZE; i++) {\n        EEPROM.write(i, 0);\n      }\n      EEPROM.commit();\n      \n      wifiConfigured = false;\n      currentStatus = DISCONNECTED;\n      connectionRetries = 0;\n      \n      // Restart captive portal\n      if (!portalActive) {\n        startCaptivePortal();\n      }\n    }\n    \n    buttonPressed = false;\n  }\n}\n\nvoid sendResponse(int code, const char* message, const char* data) {\n  JsonDocument doc;\n  doc[\"success\"] = (code == 200);\n  doc[\"message\"] = message;\n  \n  if (strlen(data) > 0) {\n    doc[\"data\"] = data;\n  }\n  \n  String response;\n  serializeJson(doc, response);\n  \n  server.send(code, \"application/json\", response);\n}"
+      }
+    },
+    {
+      "type": "wiring_diagram",
+      "path": "wifi_config_wiring.png",
+      "metadata": {
+        "description": "Wiring diagram for Wi-Fi configuration module",
+        "connections": [
+          {
+            "from": "ESP32 3.3V",
+            "to": "LED Anode",
+            "wire_color": "red"
+          },
+          {
+            "from": "ESP32 GND",
+            "to": "LED Cathode",
+            "wire_color": "black"
+          },
+          {
+            "from": "ESP32 GPIO {{.ledPin}}",
+            "to": "LED Resistor",
+            "wire_color": "yellow"
+          },
+          {
+            "from": "ESP32 GPIO {{.buttonPin}}",
+            "to": "Button",
+            "wire_color": "blue"
+          },
+          {
+            "from": "Button GND",
+            "to": "ESP32 GND",
+            "wire_color": "black"
+          }
+        ]
+      }
+    },
+    {
+      "type": "documentation",
+      "path": "README.md",
+      "metadata": {
+        "content": "# Wi-Fi Configuration with Captive Portal\n\n## Overview\nThis template implements a Wi-Fi configuration system with captive portal functionality for easy network setup. It provides a web-based interface for scanning, selecting, and connecting to Wi-Fi networks.\n\n## Features\n- **Captive Portal**: Automatic configuration page when no Wi-Fi is configured\n- **Network Scanning**: Real-time Wi-Fi network discovery\n- **Persistent Storage**: Configuration saved to EEPROM\n- **Status Indication**: LED feedback for connection status\n- **Reset Function**: Hardware button to reset settings\n- **mDNS Support**: Local network discovery\n- **AP Fallback**: Access point mode when connection fails\n- **Mobile Responsive**: Web interface works on all devices\n\n## Configuration Options\n- **LED Pin**: Status LED pin (default: 2)\n- **Button Pin**: Reset button pin (default: 0)\n- **Portal Timeout**: Captive portal timeout in minutes (default: 10)\n- **Connection Timeout**: Wi-Fi connection timeout in seconds (default: 30)\n- **Max Retries**: Maximum connection retry attempts (default: 5)\n- **Device Name**: Device name for identification (default: \"ATHENA-WiFi-Config\")\n- **Default SSID**: Access point SSID (default: \"ATHENA-Setup\")\n- **Enable AP Fallback**: Enable AP mode on connection failure (default: true)\n- **Enable mDNS**: Enable mDNS discovery (default: true)\n\n## Web Interface Features\n- **Network Scanner**: Discover available Wi-Fi networks\n- **Signal Strength**: Display RSSI for each network\n- **Security Indication**: Show encryption type\n- **Quick Connect**: Click to select networks\n- **Status Feedback**: Real-time connection status\n- **Settings Reset**: Clear saved configuration\n\n## LED Status Patterns\n- **Solid ON**: Connected to Wi-Fi\n- **Slow Blink**: Connecting or portal active\n- **Fast Blink**: Connection error\n- **OFF**: Disconnected\n\n## Button Functions\n- **Short Press**: No action\n- **Long Press (3+ seconds)**: Reset Wi-Fi settings\n\n## Supported Boards\n- ESP32 DevKit v1\n- ESP8266 NodeMCU v2\n\n## Dependencies\n- WiFi library (built-in)\n- WebServer library (built-in)\n- DNSServer library (built-in)\n- EEPROM library (built-in)\n- ArduinoJson v6.21.3\n\n## Setup Instructions\n1. Connect LED to pin {{.ledPin}} with 220Ω resistor\n2. Connect push button to pin {{.buttonPin}} with pull-up resistor\n3. Power on the device\n4. Connect to \"{{.defaultSSID}}\" Wi-Fi network\n5. Open browser and navigate to configuration page\n6. Select network and enter password\n7. Device will automatically connect and restart\n\n## Advanced Configuration\n- **Custom AP Settings**: Modify default SSID and password\n- **Timeout Adjustments**: Configure portal and connection timeouts\n- **Retry Logic**: Adjust maximum retry attempts\n- **mDNS Integration**: Enable local network discovery\n\n## Troubleshooting\n- **Portal Not Accessible**: Check device power and AP settings\n- **Connection Fails**: Verify SSID/password and network availability\n- **LED Not Working**: Check LED connections and pin assignments\n- **Button Not Responding**: Verify button wiring and pull-up resistor\n- **Settings Not Saving**: Check EEPROM functionality\n\n## Security Considerations\n- **Default Password**: Change default AP password\n- **Network Security**: Use WPA2/WPA3 networks\n- **Data Protection**: Credentials stored in EEPROM\n- **Access Control**: Limit portal access time\n\n## Integration Options\n- **IoT Platforms**: Compatible with Home Assistant, OpenHAB\n- **Cloud Services**: Works with AWS IoT, Azure IoT\n- **Mobile Apps**: Custom app development possible\n- **API Integration**: RESTful configuration API\n\n## Performance Specifications\n- **Network Scan Time**: <5 seconds for 10 networks\n- **Connection Time**: <30 seconds typical\n- **Memory Usage**: ~40KB for web server\n- **Power Consumption**: ~80mA (Wi-Fi active)\n- **Range**: Standard Wi-Fi range (~50m indoor)\n\n## Use Cases\n- **IoT Device Setup**: Easy configuration for smart devices\n- **Industrial Sensors**: Network configuration for monitoring\n- **Home Automation**: Smart home device provisioning\n- **Retrofits**: Adding Wi-Fi to existing devices\n- **Educational Projects**: Learning Wi-Fi programming"
+      }
+    }
+  ],
+  "wiring_spec": {
+    "components": [
+      {
+        "id": "esp32",
+        "type": "board",
+        "name": "ESP32 Board",
+        "pins": [
+          {"number": "3.3V", "name": "3.3V", "type": "power"},
+          {"number": "GND", "name": "gnd", "type": "ground"},
+          {"number": "{{.ledPin}}", "name": "GPIO{{.ledPin}}", "type": "digital"},
+          {"number": "{{.buttonPin}}", "name": "GPIO{{.buttonPin}}", "type": "digital"}
+        ]
+      },
+      {
+        "id": "led",
+        "type": "indicator",
+        "name": "Status LED",
+        "pins": [
+          {"number": "1", "name": "Anode", "type": "power"},
+          {"number": "2", "name": "Cathode", "type": "ground"}
+        ]
+      },
+      {
+        "id": "resistor",
+        "type": "component",
+        "name": "220Ω Resistor",
+        "pins": [
+          {"number": "1", "name": "Pin 1", "type": "passive"},
+          {"number": "2", "name": "Pin 2", "type": "passive"}
+        ]
+      },
+      {
+        "id": "button",
+        "type": "input",
+        "name": "Push Button",
+        "pins": [
+          {"number": "1", "name": "Signal", "type": "digital"},
+          {"number": "2", "name": "GND", "type": "ground"}
+        ]
+      }
+    ],
+    "connections": [
+      {
+        "from_component": "esp32",
+        "from_pin": "3.3V",
+        "to_component": "resistor",
+        "to_pin": "1",
+        "wire_color": "red"
+      },
+      {
+        "from_component": "resistor",
+        "from_pin": "2",
+        "to_component": "led",
+        "to_pin": "1",
+        "wire_color": "yellow"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "{{.ledPin}}",
+        "to_component": "resistor",
+        "to_pin": "1",
+        "wire_color": "blue"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "GND",
+        "to_component": "led",
+        "to_pin": "2",
+        "wire_color": "black"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "{{.buttonPin}}",
+        "to_component": "button",
+        "to_pin": "1",
+        "wire_color": "green"
+      },
+      {
+        "from_component": "button",
+        "from_pin": "2",
+        "to_component": "esp32",
+        "to_pin": "GND",
+        "wire_color": "black"
+      }
+    ]
+  }
+}

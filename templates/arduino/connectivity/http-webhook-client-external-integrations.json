@@ -1,0 +1,449 @@
+{
+  "id": "http-webhook-client-external-integrations",
+  "name": "HTTP Webhook Client for External Integrations",
+  "version": "1.0.0",
+  "category": "connectivity",
+  "description": "HTTP webhook client system for integrating with external APIs and web services",
+  "author": "ATHENA Team",
+  "boards_supported": ["esp32:esp32:devkitv1", "esp8266:esp8266:nodemcuv2"],
+  "libraries": [
+    {
+      "name": "WiFi",
+      "version": "2.0.0"
+    },
+    {
+      "name": "HTTPClient",
+      "version": "2.0.0"
+    },
+    {
+      "name": "ArduinoJson",
+      "version": "6.21.3"
+    },
+    {
+      "name": "EEPROM",
+      "version": "2.0.0"
+    },
+    {
+      "name": "WebServer",
+      "version": "2.0.0"
+    }
+  ],
+  "schema": {
+    "type": "object",
+    "properties": {
+      "wifiSSID": {
+        "type": "string",
+        "title": "Wi-Fi SSID",
+        "description": "Wi-Fi network name",
+        "default": ""
+      },
+      "wifiPassword": {
+        "type": "string",
+        "title": "Wi-Fi Password",
+        "description": "Wi-Fi network password",
+        "default": ""
+      },
+      "webhookURL": {
+        "type": "string",
+        "title": "Webhook URL",
+        "description": "Primary webhook endpoint URL",
+        "default": "https://api.example.com/webhook"
+      },
+      "apiKey": {
+        "type": "string",
+        "title": "API Key",
+        "description": "API key for authentication",
+        "default": ""
+      },
+      "deviceId": {
+        "type": "string",
+        "title": "Device ID",
+        "description": "Unique device identifier",
+        "default": "athena-webhook-001"
+      },
+      "sensorPins": {
+        "type": "array",
+        "title": "Sensor Pins",
+        "description": "Digital/analog sensor pins to monitor",
+        "items": {
+          "type": "object",
+          "properties": {
+            "pin": {"type": "integer"},
+            "name": {"type": "string"},
+            "type": {"type": "string", "enum": ["digital", "analog"]},
+            "threshold": {"type": "number"},
+            "unit": {"type": "string"},
+            "multiplier": {"type": "number"}
+          }
+        },
+        "default": [
+          {"pin": 34, "name": "temperature", "type": "analog", "threshold": 25.0, "unit": "°C", "multiplier": 0.1},
+          {"pin": 2, "name": "motion", "type": "digital", "threshold": 1.0, "unit": "bool", "multiplier": 1.0},
+          {"pin": 4, "name": "door", "type": "digital", "threshold": 1.0, "unit": "bool", "multiplier": 1.0}
+        ]
+      },
+      "triggerMode": {
+        "type": "string",
+        "title": "Trigger Mode",
+        "description": "When to send webhook",
+        "enum": ["change", "threshold", "periodic", "immediate"],
+        "default": "change"
+      },
+      "sendInterval": {
+        "type": "integer",
+        "title": "Send Interval",
+        "description": "Periodic send interval in seconds",
+        "minimum": 10,
+        "maximum": 3600,
+        "default": 60
+      },
+      "enableBatching": {
+        "type": "boolean",
+        "title": "Enable Batching",
+        "description": "Batch multiple sensor readings",
+        "default": true
+      },
+      "batchSize": {
+        "type": "integer",
+        "title": "Batch Size",
+        "description": "Maximum readings per batch",
+        "minimum": 1,
+        "maximum": 50,
+        "default": 10
+      },
+      "enableRetries": {
+        "type": "boolean",
+        "title": "Enable Retries",
+        "description": "Retry failed webhook deliveries",
+        "default": true
+      },
+      "maxRetries": {
+        "type": "integer",
+        "title": "Max Retries",
+        "description": "Maximum retry attempts",
+        "minimum": 1,
+        "maximum": 10,
+        "default": 3
+      },
+      "retryDelay": {
+        "type": "integer",
+        "title": "Retry Delay",
+        "description": "Delay between retries in seconds",
+        "minimum": 1,
+        "maximum": 60,
+        "default": 5
+      },
+      "enableLocalServer": {
+        "type": "boolean",
+        "title": "Enable Local Server",
+        "description": "Enable local configuration server",
+        "default": true
+      },
+      "localServerPort": {
+        "type": "integer",
+        "title": "Local Server Port",
+        "description": "Port for local web server",
+        "minimum": 80,
+        "maximum": 65535,
+        "default": 80
+      },
+      "ledPin": {
+        "type": "integer",
+        "title": "Status LED Pin",
+        "description": "LED pin for status indication",
+        "minimum": 2,
+        "maximum": 16,
+        "default": 2
+      },
+      "buttonPin": {
+        "type": "integer",
+        "title": "Config Button Pin",
+        "description": "Button pin for manual trigger",
+        "minimum": 0,
+        "maximum": 16,
+        "default": 0
+      }
+    },
+    "required": ["wifiSSID", "wifiPassword", "webhookURL", "deviceId"]
+  },
+  "parameters": {
+    "wifiSSID": "",
+    "wifiPassword": "",
+    "webhookURL": "https://api.example.com/webhook",
+    "apiKey": "",
+    "deviceId": "athena-webhook-001",
+    "sensorPins": [
+      {"pin": 34, "name": "temperature", "type": "analog", "threshold": 25.0, "unit": "°C", "multiplier": 0.1},
+      {"pin": 2, "name": "motion", "type": "digital", "threshold": 1.0, "unit": "bool", "multiplier": 1.0},
+      {"pin": 4, "name": "door", "type": "digital", "threshold": 1.0, "unit": "bool", "multiplier": 1.0}
+    ],
+    "triggerMode": "change",
+    "sendInterval": 60,
+    "enableBatching": true,
+    "batchSize": 10,
+    "enableRetries": true,
+    "maxRetries": 3,
+    "retryDelay": 5,
+    "enableLocalServer": true,
+    "localServerPort": 80,
+    "ledPin": 2,
+    "buttonPin": 0
+  },
+  "assets": [
+    {
+      "type": "code",
+      "path": "http_webhook_client.ino",
+      "metadata": {
+        "content": "#include <WiFi.h>\n#include <HTTPClient.h>\n#include <ArduinoJson.h>\n#include <EEPROM.h>\n#include <WebServer.h>\n\n// Configuration\n#define LED_PIN {{.ledPin}}\n#define BUTTON_PIN {{.buttonPin}}\n#define SEND_INTERVAL {{.sendInterval}} * 1000 // Convert to milliseconds\n#define BATCH_SIZE {{.batchSize}}\n#define MAX_SENSORS 8\n#define MAX_WEBHOOKS 5\n#define EEPROM_SIZE 512\n\n// Wi-Fi Configuration\nconst char* wifiSSID = \"{{.wifiSSID}}\";\nconst char* wifiPassword = \"{{.wifiPassword}}\";\nconst char* webhookURL = \"{{.webhookURL}}\";\nconst char* apiKey = \"{{.apiKey}}\";\nconst char* deviceId = \"{{.deviceId}}\";\nconst char* triggerMode = \"{{.triggerMode}}\";\nconst bool enableBatching = {{.enableBatching}};\nconst bool enableRetries = {{.enableRetries}};\nconst int maxRetries = {{.maxRetries}};\nconst int retryDelay = {{.retryDelay}} * 1000;\nconst int localServerPort = {{.localServerPort}};\n\n// Global variables\nWiFiClient wifiClient;\nHTTPClient httpClient;\nWebServer server(localServerPort);\n\n// Sensor configuration\nstruct SensorConfig {\n  int pin;\n  String name;\n  String type;\n  float threshold;\n  String unit;\n  float multiplier;\n  float lastValue;\n  float currentValue;\n  bool triggered;\n  unsigned long lastChangeTime;\n};\n\nSensorConfig sensors[MAX_SENSORS];\nint sensorCount = 0;\n\n// Webhook configuration\nstruct WebhookConfig {\n  String url;\n  String apiKey;\n  bool enabled;\n  int retryCount;\n  unsigned long lastRetryTime;\n};\n\nWebhookConfig webhooks[MAX_WEBHOOKS];\nint webhookCount = 1; // Primary webhook\n\n// Data batching\nstruct SensorReading {\n  unsigned long timestamp;\n  String sensorName;\n  float value;\n  String unit;\n};\n\nSensorReading batchBuffer[BATCH_SIZE];\nint batchCount = 0;\n\n// Status tracking\nenum WebhookStatus {\n  DISCONNECTED,\n  CONNECTING_WIFI,\n  IDLE,\n  SENDING,\n  ERROR\n};\n\nWebhookStatus currentStatus = DISCONNECTED;\nunsigned long lastSendTime = 0;\nunsigned long lastManualTrigger = 0;\n\n// Function prototypes\nvoid setupWiFi();\nvoid setupSensors();\nvoid setupWebhooks();\nvoid setupLocalServer();\nfloat readSensor(int pin, const String& type);\nvoid checkSensorChanges();\nvoid sendWebhook(const String& url, const String& payload);\nvoid sendBatchedData();\nvoid sendImmediateData(const String& sensorName, float value, const String& unit);\nvoid addToBatch(const String& sensorName, float value, const String& unit);\nvoid clearBatch();\nvoid handleRoot();\nvoid handleConfig();\nvoid handleTrigger();\nvoid handleStatus();\nvoid updateStatusLED();\nvoid checkButtonPress();\nString createPayload(const String& eventType, const String& data = \"\");\nbool sendHTTPRequest(const String& url, const String& payload, int retryCount = 0);\n\nvoid setup() {\n  Serial.begin(115200);\n  Serial.println(\"HTTP Webhook Client for External Integrations Starting...\");\n  \n  // Initialize pins\n  pinMode(LED_PIN, OUTPUT);\n  pinMode(BUTTON_PIN, INPUT_PULLUP);\n  digitalWrite(LED_PIN, LOW);\n  \n  // Initialize sensors\n  setupSensors();\n  \n  // Initialize webhooks\n  setupWebhooks();\n  \n  // Setup Wi-Fi\n  setupWiFi();\n  \n  // Setup local server\n  {{#if .enableLocalServer}}\n  setupLocalServer();\n  {{/if}}\n  \n  Serial.println(\"Setup completed!\");\n  Serial.print(\"Device ID: \");\n  Serial.println(deviceId);\n  Serial.print(\"Webhook URL: \");\n  Serial.println(webhookURL);\n  Serial.print(\"Trigger Mode: \");\n  Serial.println(triggerMode);\n  Serial.println(\"Webhook client ready...\");\n}\n\nvoid loop() {\n  // Handle local server requests\n  {{#if .enableLocalServer}}\n  server.handleClient();\n  {{/if}}\n  \n  // Check button press for manual trigger\n  checkButtonPress();\n  \n  // Check sensor changes\n  checkSensorChanges();\n  \n  // Send periodic data\n  if (strcmp(triggerMode, \"periodic\") == 0) {\n    unsigned long currentTime = millis();\n    if (currentTime - lastSendTime >= SEND_INTERVAL) {\n      if (enableBatching) {\n        sendBatchedData();\n      } else {\n        // Send all sensor data\n        for (int i = 0; i < sensorCount; i++) {\n          float value = readSensor(sensors[i].pin, sensors[i].type) * sensors[i].multiplier;\n          sendImmediateData(sensors[i].name, value, sensors[i].unit);\n        }\n      }\n      lastSendTime = currentTime;\n    }\n  }\n  \n  updateStatusLED();\n  delay(100);\n}\n\nvoid setupWiFi() {\n  Serial.print(\"Connecting to Wi-Fi: \");\n  Serial.println(wifiSSID);\n  \n  currentStatus = CONNECTING_WIFI;\n  \n  WiFi.begin(wifiSSID, wifiPassword);\n  \n  int attempts = 0;\n  while (WiFi.status() != WL_CONNECTED && attempts < 30) {\n    delay(500);\n    Serial.print(\".\");\n    attempts++;\n  }\n  \n  if (WiFi.status() == WL_CONNECTED) {\n    Serial.println(\"\\nWi-Fi connected!\");\n    Serial.print(\"IP address: \");\n    Serial.println(WiFi.localIP());\n    currentStatus = IDLE;\n  } else {\n    Serial.println(\"\\nWi-Fi connection failed!\");\n    currentStatus = ERROR;\n  }\n}\n\nvoid setupSensors() {\n  // Initialize sensor configurations\n  {{#each .sensorPins}}\n  if (sensorCount < MAX_SENSORS) {\n    sensors[sensorCount].pin = {{pin}};\n    sensors[sensorCount].name = \"{{name}}\";\n    sensors[sensorCount].type = \"{{type}}\";\n    sensors[sensorCount].threshold = {{threshold}};\n    sensors[sensorCount].unit = \"{{unit}}\";\n    sensors[sensorCount].multiplier = {{multiplier}};\n    sensors[sensorCount].lastValue = 0;\n    sensors[sensorCount].currentValue = 0;\n    sensors[sensorCount].triggered = false;\n    sensors[sensorCount].lastChangeTime = 0;\n    \n    // Set pin mode\n    if (sensors[sensorCount].type == \"digital\") {\n      pinMode({{pin}}, INPUT_PULLUP);\n    }\n    \n    sensorCount++;\n  }\n  {{/each}}\n  \n  Serial.print(\"Initialized \");\n  Serial.print(sensorCount);\n  Serial.println(\" sensors\");\n}\n\nvoid setupWebhooks() {\n  // Initialize primary webhook\n  webhooks[0].url = String(webhookURL);\n  webhooks[0].apiKey = String(apiKey);\n  webhooks[0].enabled = true;\n  webhooks[0].retryCount = 0;\n  webhooks[0].lastRetryTime = 0;\n  \n  webhookCount = 1;\n}\n\nvoid setupLocalServer() {\n  server.on(\"/\", HTTP_GET, handleRoot);\n  server.on(\"/config\", HTTP_GET, handleConfig);\n  server.on(\"/trigger\", HTTP_POST, handleTrigger);\n  server.on(\"/status\", HTTP_GET, handleStatus);\n  \n  server.begin();\n  Serial.print(\"Local server started on port \");\n  Serial.println(localServerPort);\n}\n\nfloat readSensor(int pin, const String& type) {\n  if (type == \"digital\") {\n    return digitalRead(pin);\n  } else if (type == \"analog\") {\n    int rawValue = analogRead(pin);\n    // Convert to voltage (assuming 3.3V reference)\n    return (rawValue / 4095.0) * 3.3;\n  }\n  return 0;\n}\n\nvoid checkSensorChanges() {\n  for (int i = 0; i < sensorCount; i++) {\n    float currentValue = readSensor(sensors[i].pin, sensors[i].type) * sensors[i].multiplier;\n    sensors[i].currentValue = currentValue;\n    \n    bool shouldTrigger = false;\n    \n    if (strcmp(triggerMode, \"change\") == 0) {\n      // Trigger on value change\n      float change = abs(currentValue - sensors[i].lastValue);\n      shouldTrigger = change > 0.01; // Small threshold to avoid noise\n    } else if (strcmp(triggerMode, \"threshold\") == 0) {\n      // Trigger when threshold is crossed\n      bool wasBelow = sensors[i].lastValue < sensors[i].threshold;\n      bool isAbove = currentValue >= sensors[i].threshold;\n      shouldTrigger = wasBelow && isAbove;\n    } else if (strcmp(triggerMode, \"immediate\") == 0) {\n      // Trigger on every reading\n      shouldTrigger = true;\n    }\n    \n    if (shouldTrigger && !sensors[i].triggered) {\n      Serial.print(\"Sensor triggered: \");\n      Serial.print(sensors[i].name);\n      Serial.print(\" = \");\n      Serial.println(currentValue);\n      \n      if (enableBatching) {\n        addToBatch(sensors[i].name, currentValue, sensors[i].unit);\n      } else {\n        sendImmediateData(sensors[i].name, currentValue, sensors[i].unit);\n      }\n      \n      sensors[i].triggered = true;\n      sensors[i].lastChangeTime = millis();\n    } else if (!shouldTrigger) {\n      sensors[i].triggered = false;\n    }\n    \n    sensors[i].lastValue = currentValue;\n  }\n  \n  // Send batched data if buffer is full\n  if (enableBatching && batchCount >= BATCH_SIZE) {\n    sendBatchedData();\n  }\n}\n\nvoid sendWebhook(const String& url, const String& payload) {\n  Serial.print(\"Sending webhook to: \");\n  Serial.println(url);\n  Serial.print(\"Payload: \");\n  Serial.println(payload);\n  \n  sendHTTPRequest(url, payload);\n}\n\nvoid sendBatchedData() {\n  if (batchCount == 0) {\n    return;\n  }\n  \n  // Create JSON payload with batched readings\n  JsonDocument doc;\n  JsonObject root = doc.to<JsonObject>();\n  \n  root[\"deviceId\"] = deviceId;\n  root[\"timestamp\"] = millis();\n  root[\"eventType\"] = \"sensor_batch\";\n  root[\"wifiRSSI\"] = WiFi.RSSI();\n  \n  JsonArray readings = root.createNestedArray(\"readings\");\n  \n  for (int i = 0; i < batchCount; i++) {\n    JsonObject reading = readings.createNestedObject();\n    reading[\"timestamp\"] = batchBuffer[i].timestamp;\n    reading[\"sensorName\"] = batchBuffer[i].sensorName;\n    reading[\"value\"] = batchBuffer[i].value;\n    reading[\"unit\"] = batchBuffer[i].unit;\n  }\n  \n  String payload;\n  serializeJson(doc, payload);\n  \n  // Send to all enabled webhooks\n  for (int i = 0; i < webhookCount; i++) {\n    if (webhooks[i].enabled) {\n      sendWebhook(webhooks[i].url, payload);\n    }\n  }\n  \n  clearBatch();\n}\n\nvoid sendImmediateData(const String& sensorName, float value, const String& unit) {\n  String payload = createPayload(\"sensor_reading\", \\\"\\\" + sensorName + \\\",\\\" + String(value) + \\\",\\\" + unit + \\\"\\\");\n  \n  // Send to all enabled webhooks\n  for (int i = 0; i < webhookCount; i++) {\n    if (webhooks[i].enabled) {\n      sendWebhook(webhooks[i].url, payload);\n    }\n  }\n}\n\nvoid addToBatch(const String& sensorName, float value, const String& unit) {\n  if (batchCount >= BATCH_SIZE) {\n    return; // Buffer full\n  }\n  \n  batchBuffer[batchCount].timestamp = millis();\n  batchBuffer[batchCount].sensorName = sensorName;\n  batchBuffer[batchCount].value = value;\n  batchBuffer[batchCount].unit = unit;\n  \n  batchCount++;\n}\n\nvoid clearBatch() {\n  batchCount = 0;\n}\n\nvoid handleRoot() {\n  String html = R\"(\n<!DOCTYPE html>\n<html>\n<head>\n  <title>ATHENA Webhook Client</title>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <style>\n    body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }\n    .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }\n    h1 { color: #333; text-align: center; margin-bottom: 30px; }\n    .status { padding: 15px; border-radius: 5px; margin-bottom: 20px; }\n    .status.connected { background: #d4edda; color: #155724; }\n    .status.disconnected { background: #f8d7da; color: #721c24; }\n    .sensor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px; }\n    .sensor-card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; }\n    .sensor-name { font-weight: bold; color: #333; margin-bottom: 10px; }\n    .sensor-value { font-size: 24px; color: #007bff; margin-bottom: 5px; }\n    .sensor-unit { color: #666; }\n    .trigger-btn { width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 20px; }\n    .trigger-btn:hover { background: #1e7e34; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <h1>🌐 ATHENA Webhook Client</h1>\n    \n    <div id=\"status\" class=\"status\"></div>\n    \n    <div class=\"sensor-grid\" id=\"sensorGrid\"></div>\n    \n    <button class=\"trigger-btn\" onclick=\"triggerWebhook()\">📤 Trigger Manual Webhook</button>\n  </div>\n  \n  <script>\n    function updateStatus() {\n      fetch('/status')\n        .then(response => response.json())\n        .then(data => {\n          const statusDiv = document.getElementById('status');\n          statusDiv.className = 'status ' + (data.wifiConnected ? 'connected' : 'disconnected');\n          statusDiv.textContent = data.wifiConnected ? '🟢 Connected to Wi-Fi' : '🔴 Disconnected from Wi-Fi';\n          \n          // Update sensor readings\n          const sensorGrid = document.getElementById('sensorGrid');\n          sensorGrid.innerHTML = '';\n          \n          if (data.sensors) {\n            data.sensors.forEach(sensor => {\n              const card = document.createElement('div');\n              card.className = 'sensor-card';\n              card.innerHTML = `\n                <div class=\"sensor-name\">${sensor.name}</div>\n                <div class=\"sensor-value\">${sensor.value}</div>\n                <div class=\"sensor-unit\">${sensor.unit}</div>\n              `;\n              sensorGrid.appendChild(card);\n            });\n          }\n        })\n        .catch(error => {\n          console.error('Error updating status:', error);\n        });\n    }\n    \n    function triggerWebhook() {\n      fetch('/trigger', {\n        method: 'POST',\n        headers: {\n          'Content-Type': 'application/json',\n        },\n        body: JSON.stringify({ action: 'manual_trigger' })\n      })\n      .then(response => response.json())\n      .then(data => {\n        alert('Webhook triggered: ' + data.message);\n      })\n      .catch(error => {\n        alert('Error triggering webhook: ' + error.message);\n      });\n    }\n    \n    // Update status every 2 seconds\n    setInterval(updateStatus, 2000);\n    updateStatus();\n  </script>\n</body>\n</html>\n)\";\n  \n  server.send(200, \"text/html\", html);\n}\n\nvoid handleConfig() {\n  JsonDocument doc;\n  \n  // Add device configuration\n  doc[\"deviceId\"] = deviceId;\n  doc[\"webhookURL\"] = webhookURL;\n  doc[\"triggerMode\"] = triggerMode;\n  doc[\"sendInterval\"] = {{.sendInterval}};\n  doc[\"enableBatching\"] = enableBatching;\n  doc[\"wifiConnected\"] = (WiFi.status() == WL_CONNECTED);\n  doc[\"ip\"] = WiFi.localIP().toString();\n  \n  // Add sensor configuration\n  JsonArray sensors = doc.createNestedArray(\"sensors\");\n  for (int i = 0; i < sensorCount; i++) {\n    JsonObject sensor = sensors.createNestedObject();\n    sensor[\"name\"] = sensors[i].name;\n    sensor[\"pin\"] = sensors[i].pin;\n    sensor[\"type\"] = sensors[i].type;\n    sensor[\"currentValue\"] = sensors[i].currentValue;\n    sensor[\"unit\"] = sensors[i].unit;\n    sensor[\"threshold\"] = sensors[i].threshold;\n  }\n  \n  String response;\n  serializeJson(doc, response);\n  \n  server.send(200, \"application/json\", response);\n}\n\nvoid handleTrigger() {\n  Serial.println(\"Manual webhook trigger requested\");\n  \n  // Send immediate trigger with all sensor data\n  if (enableBatching) {\n    sendBatchedData();\n  } else {\n    for (int i = 0; i < sensorCount; i++) {\n      float value = readSensor(sensors[i].pin, sensors[i].type) * sensors[i].multiplier;\n      sendImmediateData(sensors[i].name, value, sensors[i].unit);\n    }\n  }\n  \n  String response = \"{\\\"success\\\": true, \\\"message\\\": \\\"Manual webhook triggered\\\"}\";\n  server.send(200, \"application/json\", response);\n}\n\nvoid handleStatus() {\n  JsonDocument doc;\n  \n  doc[\"deviceId\"] = deviceId;\n  doc[\"wifiConnected\"] = (WiFi.status() == WL_CONNECTED);\n  doc[\"ip\"] = WiFi.localIP().toString();\n  doc[\"rssi\"] = WiFi.RSSI();\n  doc[\"status\"] = currentStatus == IDLE ? \"idle\" : (currentStatus == SENDING ? \"sending\" : \"error\");\n  doc[\"batchCount\"] = batchCount;\n  doc[\"lastSendTime\"] = lastSendTime;\n  \n  JsonArray sensors = doc.createNestedArray(\"sensors\");\n  for (int i = 0; i < sensorCount; i++) {\n    JsonObject sensor = sensors.createNestedObject();\n    sensor[\"name\"] = sensors[i].name;\n    sensor[\"currentValue\"] = sensors[i].currentValue;\n    sensor[\"lastValue\"] = sensors[i].lastValue;\n    sensor[\"unit\"] = sensors[i].unit;\n    sensor[\"triggered\"] = sensors[i].triggered;\n  }\n  \n  String response;\n  serializeJson(doc, response);\n  \n  server.send(200, \"application/json\", response);\n}\n\nvoid updateStatusLED() {\n  static unsigned long lastBlinkTime = 0;\n  static bool ledState = false;\n  \n  switch (currentStatus) {\n    case IDLE:\n      digitalWrite(LED_PIN, HIGH); // Solid on when idle and connected\n      break;\n      \n    case SENDING:\n      // Fast blink when sending\n      if (millis() - lastBlinkTime > 200) {\n        ledState = !ledState;\n        digitalWrite(LED_PIN, ledState);\n        lastBlinkTime = millis();\n      }\n      break;\n      \n    case ERROR:\n      // Fast blink when error\n      if (millis() - lastBlinkTime > 100) {\n        ledState = !ledState;\n        digitalWrite(LED_PIN, ledState);\n        lastBlinkTime = millis();\n      }\n      break;\n      \n    default:\n      digitalWrite(LED_PIN, LOW); // Off when disconnected\n      break;\n  }\n}\n\nvoid checkButtonPress() {\n  static bool lastButtonState = HIGH;\n  bool currentButtonState = digitalRead(BUTTON_PIN);\n  \n  // Detect button press (high to low transition)\n  if (lastButtonState == HIGH && currentButtonState == LOW) {\n    if (millis() - lastManualTrigger > 1000) { // Debounce\n      Serial.println(\"Manual trigger button pressed\");\n      \n      // Send immediate trigger\n      if (enableBatching) {\n        sendBatchedData();\n      } else {\n        for (int i = 0; i < sensorCount; i++) {\n          float value = readSensor(sensors[i].pin, sensors[i].type) * sensors[i].multiplier;\n          sendImmediateData(sensors[i].name, value, sensors[i].unit);\n        }\n      }\n      \n      lastManualTrigger = millis();\n    }\n  }\n  \n  lastButtonState = currentButtonState;\n}\n\nString createPayload(const String& eventType, const String& data) {\n  JsonDocument doc;\n  \n  doc[\"deviceId\"] = deviceId;\n  doc[\"timestamp\"] = millis();\n  doc[\"eventType\"] = eventType;\n  doc[\"wifiRSSI\"] = WiFi.RSSI();\n  doc[\"ip\"] = WiFi.localIP().toString();\n  \n  if (data.length() > 0) {\n    // Parse sensor data from string format: \"sensorName,value,unit\"\n    int firstComma = data.indexOf(',');\n    int secondComma = data.indexOf(',', firstComma + 1);\n    \n    if (firstComma > 0 && secondComma > firstComma) {\n      String sensorName = data.substring(0, firstComma);\n      float value = data.substring(firstComma + 1, secondComma).toFloat();\n      String unit = data.substring(secondComma + 1);\n      \n      JsonObject sensorData = doc.createNestedObject(\"sensorData\");\n      sensorData[\"name\"] = sensorName;\n      sensorData[\"value\"] = value;\n      sensorData[\"unit\"] = unit;\n    }\n  }\n  \n  String payload;\n  serializeJson(doc, payload);\n  return payload;\n}\n\nbool sendHTTPRequest(const String& url, const String& payload, int retryCount) {\n  currentStatus = SENDING;\n  \n  httpClient.begin(url);\n  httpClient.addHeader(\"Content-Type\", \"application/json\");\n  \n  // Add API key if provided\n  if (strlen(apiKey) > 0) {\n    httpClient.addHeader(\"Authorization\", \"Bearer \" + String(apiKey));\n  }\n  \n  int httpResponseCode = httpClient.POST(payload);\n  String response = httpClient.getString();\n  \n  if (httpResponseCode == 200) {\n    Serial.println(\"Webhook sent successfully\");\n    Serial.print(\"Response: \");\n    Serial.println(response);\n    currentStatus = IDLE;\n    \n    // Reset retry count\n    for (int i = 0; i < webhookCount; i++) {\n      webhooks[i].retryCount = 0;\n    }\n    \n    return true;\n  } else {\n    Serial.print(\"Webhook failed with code: \");\n    Serial.println(httpResponseCode);\n    Serial.print(\"Response: \");\n    Serial.println(response);\n    \n    currentStatus = ERROR;\n    \n    // Retry logic\n    if (enableRetries && retryCount < maxRetries) {\n      Serial.print(\"Retrying in \");\n      Serial.print(retryDelay / 1000);\n      Serial.println(\" seconds...\");\n      \n      delay(retryDelay);\n      return sendHTTPRequest(url, payload, retryCount + 1);\n    }\n    \n    return false;\n  }\n  \n  httpClient.end();\n}"
+      }
+    },
+    {
+      "type": "wiring_diagram",
+      "path": "http_webhook_wiring.png",
+      "metadata": {
+        "description": "Wiring diagram for HTTP webhook client with sensors",
+        "connections": [
+          {
+            "from": "ESP32 3.3V",
+            "to": "LED Anode",
+            "wire_color": "red"
+          },
+          {
+            "from": "ESP32 GND",
+            "to": "LED Cathode",
+            "wire_color": "black"
+          },
+          {
+            "from": "ESP32 GPIO {{.ledPin}}",
+            "to": "LED Resistor",
+            "wire_color": "yellow"
+          },
+          {
+            "from": "ESP32 GPIO {{.buttonPin}}",
+            "to": "Button",
+            "wire_color": "blue"
+          },
+          {
+            "from": "Button GND",
+            "to": "ESP32 GND",
+            "wire_color": "black"
+          },
+          {
+            "from": "ESP32 GPIO 34",
+            "to": "Temperature Sensor",
+            "wire_color": "green"
+          },
+          {
+            "from": "ESP32 GPIO 2",
+            "to": "Motion Sensor",
+            "wire_color": "orange"
+          },
+          {
+            "from": "ESP32 GPIO 4",
+            "to": "Door Sensor",
+            "wire_color": "purple"
+          },
+          {
+            "from": "Sensors GND",
+            "to": "ESP32 GND",
+            "wire_color": "black"
+          },
+          {
+            "from": "Sensors VCC",
+            "to": "ESP32 3.3V",
+            "wire_color": "red"
+          }
+        ]
+      }
+    },
+    {
+      "type": "documentation",
+      "path": "README.md",
+      "metadata": {
+        "content": "# HTTP Webhook Client for External Integrations\n\n## Overview\nThis template implements an HTTP webhook client system for integrating Arduino devices with external APIs and web services. It supports multiple trigger modes, data batching, and local configuration.\n\n## Features\n- **Multiple Trigger Modes**: Change, threshold, periodic, and immediate triggering\n- **Data Batching**: Batch multiple sensor readings for efficiency\n- **Retry Logic**: Automatic retry with exponential backoff\n- **Local Server**: Web interface for configuration and monitoring\n- **Multiple Sensors**: Support for digital and analog sensors\n- **Manual Trigger**: Button-based manual webhook triggering\n- **Status Monitoring**: LED indication and web status page\n- **Flexible Integration**: Works with any HTTP endpoint\n\n## Configuration Options\n- **Wi-Fi Settings**: SSID, password for network connection\n- **Webhook URL**: Primary HTTP endpoint for data\n- **API Key**: Authentication token for webhook requests\n- **Device ID**: Unique identifier for the client\n- **Sensor Configuration**: Pin assignments, types, thresholds, units\n- **Trigger Mode**: When to send webhooks (change/threshold/periodic/immediate)\n- **Send Interval**: Periodic send frequency (10-3600 seconds)\n- **Batching**: Enable data batching (default: enabled)\n- **Batch Size**: Maximum readings per batch (1-50)\n- **Retries**: Enable retry logic (default: enabled)\n- **Max Retries**: Maximum retry attempts (1-10)\n- **Retry Delay**: Delay between retries (1-60 seconds)\n- **Local Server**: Enable configuration web server (default: enabled)\n- **Server Port**: Port for local web interface (80-65535)\n- **Status LED**: LED pin for status indication\n- **Config Button**: Button pin for manual trigger\n\n## Trigger Modes\n### Change Mode\n- Sends webhook when sensor value changes\n- Configurable change threshold to avoid noise\n- Best for level sensors and switches\n\n### Threshold Mode\n- Sends webhook when sensor crosses threshold value\n- Only triggers on upward crossing\n- Best for temperature, pressure, humidity sensors\n\n### Periodic Mode\n- Sends webhook at regular intervals\n- Includes all sensor data\n- Best for continuous monitoring\n\n### Immediate Mode\n- Sends webhook on every sensor reading\n- High frequency, high data volume\n- Best for critical events\n\n## Webhook Payload Format\n### Single Reading\n```json\n{\n  \"deviceId\": \"athena-webhook-001\",\n  \"timestamp\": 1234567890,\n  \"eventType\": \"sensor_reading\",\n  \"wifiRSSI\": -45,\n  \"ip\": \"192.168.1.100\",\n  \"sensorData\": {\n    \"name\": \"temperature\",\n    \"value\": 23.5,\n    \"unit\": \"°C\"\n  }\n}\n```\n\n### Batched Readings\n```json\n{\n  \"deviceId\": \"athena-webhook-001\",\n  \"timestamp\": 1234567890,\n  \"eventType\": \"sensor_batch\",\n  \"wifiRSSI\": -45,\n  \"ip\": \"192.168.1.100\",\n  \"readings\": [\n    {\n      \"timestamp\": 1234567890,\n      \"sensorName\": \"temperature\",\n      \"value\": 23.5,\n      \"unit\": \"°C\"\n    },\n    {\n      \"timestamp\": 1234567891,\n      \"sensorName\": \"motion\",\n      \"value\": 1,\n      \"unit\": \"bool\"\n    }\n  ]\n}\n```\n\n## Local Web Interface\n- **Status Page**: Real-time sensor readings and system status\n- **Configuration API**: JSON endpoint for device configuration\n- **Manual Trigger**: Web-based manual webhook triggering\n- **Sensor Grid**: Visual display of all sensor data\n\n### Endpoints\n- `GET /` - Main status page\n- `GET /config` - Device configuration (JSON)\n- `GET /status` - Current status (JSON)\n- `POST /trigger` - Manual webhook trigger\n\n## Supported Sensors\n### Digital Sensors\n- **Motion Sensors**: PIR, microwave, ultrasonic\n- **Contact Sensors**: Door/window, reed switches\n- **Buttons**: Push buttons, switches\n- **Level Sensors**: Water level, bin full sensors\n\n### Analog Sensors\n- **Temperature**: LM35, thermistors, PT100\n- **Light**: LDR, photoresistors, BH1750\n- **Humidity**: DHT11 (analog mode), capacitive\n- **Pressure**: MPX5700, pressure transducers\n\n## Integration Examples\n### IFTTT Integration\n```javascript\n// Webhook URL: https://maker.ifttt.com/trigger/{event}/with/key/{key}\n// Payload triggers IFTTT applets\n```\n\n### Zapier Integration\n```javascript\n// Webhook URL: https://hooks.zapier.com/hooks/catch/{id}/\n// Payload can trigger Zapier workflows\n```\n\n### Custom API Integration\n```javascript\n// Your server endpoint\napp.post('/webhook', (req, res) => {\n  const { deviceId, sensorData } = req.body;\n  console.log(`Device ${deviceId} reports: ${sensorData.name} = ${sensorData.value}${sensorData.unit}`);\n  // Process sensor data\n  res.status(200).send({success: true});\n});\n```\n\n### Slack Integration\n```javascript\n// Incoming webhook URL for Slack\n// Format payload for Slack message format\n```\n\n## LED Status Patterns\n- **Solid ON**: Idle and connected to Wi-Fi\n- **Fast Blink**: Sending webhook data\n- **Very Fast Blink**: Connection error\n- **OFF**: Disconnected from Wi-Fi\n\n## Supported Boards\n- ESP32 DevKit v1\n- ESP8266 NodeMCU v2\n\n## Dependencies\n- WiFi library (built-in)\n- HTTPClient library (built-in)\n- ArduinoJson library v6.21.3\n- EEPROM library (built-in)\n- WebServer library (built-in)\n\n## Setup Instructions\n1. Connect sensors to specified pins\n2. Connect status LED to pin {{.ledPin}}\n3. Connect button to pin {{.buttonPin}}\n4. Configure Wi-Fi and webhook settings\n5. Upload sketch to device\n6. Test webhook integration\n7. Monitor local web interface\n\n## Advanced Configuration\n- **Custom Headers**: Add custom HTTP headers\n- **TLS Support**: Enable HTTPS endpoints\n- **Data Transformation**: Modify payload format\n- **Multiple Webhooks**: Configure backup endpoints\n- **Rate Limiting**: Respect API rate limits\n\n## Performance Specifications\n- **HTTP Request**: <500ms typical\n- **Sensor Reading**: <10ms per sensor\n- **Batch Processing**: <100ms for full batch\n- **Memory Usage**: ~25KB for buffers\n- **Power Consumption**: ~90mA (Wi-Fi active)\n- **Data Rate**: Configurable based on trigger mode\n\n## Troubleshooting\n- **Webhook Not Sending**: Check URL, API key, network connectivity\n- **Sensor Not Triggering**: Verify pin assignments and thresholds\n- **Batch Not Working**: Check batching configuration and buffer size\n- **Local Server Not Accessible**: Check IP address and port\n- **LED Not Working**: Verify LED connections and pin assignment\n- **Button Not Responding**: Check button wiring and pull-up resistor\n\n## Security Considerations\n- **API Keys**: Store securely, use HTTPS endpoints\n- **Data Privacy**: Avoid sensitive data in payloads\n- **Network Security**: Use WPA2/WPA3 networks\n- **Access Control**: Limit webhook endpoint access\n- **Authentication**: Use bearer tokens or API keys\n\n## Use Cases\n- **Home Automation**: Trigger smart home routines\n- **Industrial Monitoring**: Send alerts to monitoring systems\n- **Security Systems**: Integrate with security services\n- **Environmental Monitoring**: Send data to cloud platforms\n- **IoT Integration**: Connect to custom dashboards\n- **Alert Systems**: Send notifications to messaging platforms"
+      }
+    }
+  ],
+  "wiring_spec": {
+    "components": [
+      {
+        "id": "esp32",
+        "type": "board",
+        "name": "ESP32 Board",
+        "pins": [
+          {"number": "3.3V", "name": "3.3V", "type": "power"},
+          {"number": "GND", "name": "gnd", "type": "ground"},
+          {"number": "{{.ledPin}}", "name": "GPIO{{.ledPin}}", "type": "digital"},
+          {"number": "{{.buttonPin}}", "name": "GPIO{{.buttonPin}}", "type": "digital"},
+          {"number": "34", "name": "GPIO34", "type": "analog"},
+          {"number": "2", "name": "GPIO2", "type": "digital"},
+          {"number": "4", "name": "GPIO4", "type": "digital"}
+        ]
+      },
+      {
+        "id": "led",
+        "type": "indicator",
+        "name": "Status LED",
+        "pins": [
+          {"number": "1", "name": "Anode", "type": "power"},
+          {"number": "2", "name": "Cathode", "type": "ground"}
+        ]
+      },
+      {
+        "id": "resistor",
+        "type": "component",
+        "name": "220Ω Resistor",
+        "pins": [
+          {"number": "1", "name": "Pin 1", "type": "passive"},
+          {"number": "2", "name": "Pin 2", "type": "passive"}
+        ]
+      },
+      {
+        "id": "button",
+        "type": "input",
+        "name": "Push Button",
+        "pins": [
+          {"number": "1", "name": "Signal", "type": "digital"},
+          {"number": "2", "name": "GND", "type": "ground"}
+        ]
+      },
+      {
+        "id": "temp-sensor",
+        "type": "sensor",
+        "name": "Temperature Sensor",
+        "pins": [
+          {"number": "1", "name": "VCC", "type": "power"},
+          {"number": "2", "name": "GND", "type": "ground"},
+          {"number": "3", "name": "OUT", "type": "analog"}
+        ]
+      },
+      {
+        "id": "motion-sensor",
+        "type": "sensor",
+        "name": "Motion Sensor",
+        "pins": [
+          {"number": "1", "name": "VCC", "type": "power"},
+          {"number": "2", "name": "GND", "type": "ground"},
+          {"number": "3", "name": "OUT", "type": "digital"}
+        ]
+      },
+      {
+        "id": "door-sensor",
+        "type": "sensor",
+        "name": "Door Sensor",
+        "pins": [
+          {"number": "1", "name": "VCC", "type": "power"},
+          {"number": "2", "name": "GND", "type": "ground"},
+          {"number": "3", "name": "OUT", "type": "digital"}
+        ]
+      }
+    ],
+    "connections": [
+      {
+        "from_component": "esp32",
+        "from_pin": "3.3V",
+        "to_component": "resistor",
+        "to_pin": "1",
+        "wire_color": "red"
+      },
+      {
+        "from_component": "resistor",
+        "from_pin": "2",
+        "to_component": "led",
+        "to_pin": "1",
+        "wire_color": "yellow"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "{{.ledPin}}",
+        "to_component": "resistor",
+        "to_pin": "1",
+        "wire_color": "blue"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "GND",
+        "to_component": "led",
+        "to_pin": "2",
+        "wire_color": "black"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "{{.buttonPin}}",
+        "to_component": "button",
+        "to_pin": "1",
+        "wire_color": "green"
+      },
+      {
+        "from_component": "button",
+        "from_pin": "2",
+        "to_component": "esp32",
+        "to_pin": "GND",
+        "wire_color": "black"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "34",
+        "to_component": "temp-sensor",
+        "to_pin": "3",
+        "wire_color": "orange"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "2",
+        "to_component": "motion-sensor",
+        "to_pin": "3",
+        "wire_color": "purple"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "4",
+        "to_component": "door-sensor",
+        "to_pin": "3",
+        "wire_color": "brown"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "3.3V",
+        "to_component": "temp-sensor",
+        "to_pin": "1",
+        "wire_color": "red"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "3.3V",
+        "to_component": "motion-sensor",
+        "to_pin": "1",
+        "wire_color": "red"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "3.3V",
+        "to_component": "door-sensor",
+        "to_pin": "1",
+        "wire_color": "red"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "GND",
+        "to_component": "temp-sensor",
+        "to_pin": "2",
+        "wire_color": "black"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "GND",
+        "to_component": "motion-sensor",
+        "to_pin": "2",
+        "wire_color": "black"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "GND",
+        "to_component": "door-sensor",
+        "to_pin": "2",
+        "wire_color": "black"
+      }
+    ]
+  }
+}

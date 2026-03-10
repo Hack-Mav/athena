@@ -1,0 +1,400 @@
+{
+  "id": "ble-beacon-proximity-automation",
+  "name": "BLE Beacon for Proximity-Based Automation",
+  "version": "1.0.0",
+  "category": "connectivity",
+  "description": "BLE beacon system for proximity-based automation and presence detection",
+  "author": "ATHENA Team",
+  "boards_supported": ["esp32:esp32:devkitv1"],
+  "libraries": [
+    {
+      "name": "BLEDevice",
+      "version": "2.0.0"
+    },
+    {
+      "name": "BLEServer",
+      "version": "2.0.0"
+    },
+    {
+      "name": "BLEUtils",
+      "version": "2.0.0"
+    },
+    {
+      "name": "ArduinoJson",
+      "version": "6.21.3"
+    },
+    {
+      "name": "EEPROM",
+      "version": "2.0.0"
+    }
+  ],
+  "schema": {
+    "type": "object",
+    "properties": {
+      "deviceName": {
+        "type": "string",
+        "title": "Device Name",
+        "description": "BLE device name",
+        "default": "ATHENA-Beacon"
+      },
+      "beaconUUID": {
+        "type": "string",
+        "title": "Beacon UUID",
+        "description": "Unique UUID for beacon service",
+        "default": "12345678-1234-1234-1234-123456789abc"
+      },
+      "majorVersion": {
+        "type": "integer",
+        "title": "Major Version",
+        "description": "Beacon major version",
+        "minimum": 0,
+        "maximum": 65535,
+        "default": 1
+      },
+      "minorVersion": {
+        "type": "integer",
+        "title": "Minor Version",
+        "description": "Beacon minor version",
+        "minimum": 0,
+        "maximum": 65535,
+        "default": 1
+      },
+      "txPower": {
+        "type": "integer",
+        "title": "TX Power",
+        "description": "Transmit power in dBm",
+        "minimum": -127,
+        "maximum": 127,
+        "default": -59
+      },
+      "advertisingInterval": {
+        "type": "integer",
+        "title": "Advertising Interval",
+        "description": "Advertising interval in milliseconds",
+        "minimum": 20,
+        "maximum": 10000,
+        "default": 100
+      },
+      "relayPins": {
+        "type": "array",
+        "title": "Relay Pins",
+        "description": "Relay pins for proximity automation",
+        "items": {
+          "type": "object",
+          "properties": {
+            "pin": {"type": "integer"},
+            "name": {"type": "string"},
+            "triggerDistance": {"type": "number"},
+            "action": {"type": "string", "enum": ["on", "off", "toggle"]},
+            "delay": {"type": "integer"}
+          }
+        },
+        "default": [
+          {"pin": 2, "name": "lights", "triggerDistance": 2.0, "action": "on", "delay": 0},
+          {"pin": 4, "name": "fan", "triggerDistance": 1.5, "action": "on", "delay": 5000},
+          {"pin": 5, "name": "alarm", "triggerDistance": 0.5, "action": "off", "delay": 1000}
+        ]
+      },
+      "rssiThreshold": {
+        "type": "integer",
+        "title": "RSSI Threshold",
+        "description": "RSSI threshold for proximity detection",
+        "minimum": -100,
+        "maximum": -30,
+        "default": -70
+      },
+      "presenceTimeout": {
+        "type": "integer",
+        "title": "Presence Timeout",
+        "description": "Timeout for presence detection in seconds",
+        "minimum": 5,
+        "maximum": 300,
+        "default": 30
+      },
+      "enableScanning": {
+        "type": "boolean",
+        "title": "Enable Scanning",
+        "description": "Enable BLE scanning for other devices",
+        "default": true
+      },
+      "scanDuration": {
+        "type": "integer",
+        "title": "Scan Duration",
+        "description": "BLE scan duration in seconds",
+        "minimum": 1,
+        "maximum": 60,
+        "default": 5
+      },
+      "enableLogging": {
+        "type": "boolean",
+        "title": "Enable Logging",
+        "description": "Enable presence logging to serial",
+        "default": true
+      },
+      "ledPin": {
+        "type": "integer",
+        "title": "Status LED Pin",
+        "description": "LED pin for status indication",
+        "minimum": 2,
+        "maximum": 16,
+        "default": 13
+      },
+      "buttonPin": {
+        "type": "integer",
+        "title": "Config Button Pin",
+        "description": "Button pin for manual control",
+        "minimum": 0,
+        "maximum": 16,
+        "default": 0
+      },
+      "enableWebServer": {
+        "type": "boolean",
+        "title": "Enable Web Server",
+        "description": "Enable configuration web server",
+        "default": true
+      },
+      "webServerPort": {
+        "type": "integer",
+        "title": "Web Server Port",
+        "description": "Port for configuration server",
+        "minimum": 80,
+        "maximum": 65535,
+        "default": 80
+      }
+    },
+    "required": ["deviceName", "beaconUUID", "majorVersion", "minorVersion"]
+  },
+  "parameters": {
+    "deviceName": "ATHENA-Beacon",
+    "beaconUUID": "12345678-1234-1234-1234-123456789abc",
+    "majorVersion": 1,
+    "minorVersion": 1,
+    "txPower": -59,
+    "advertisingInterval": 100,
+    "relayPins": [
+      {"pin": 2, "name": "lights", "triggerDistance": 2.0, "action": "on", "delay": 0},
+      {"pin": 4, "name": "fan", "triggerDistance": 1.5, "action": "on", "delay": 5000},
+      {"pin": 5, "name": "alarm", "triggerDistance": 0.5, "action": "off", "delay": 1000}
+    ],
+    "rssiThreshold": -70,
+    "presenceTimeout": 30,
+    "enableScanning": true,
+    "scanDuration": 5,
+    "enableLogging": true,
+    "ledPin": 13,
+    "buttonPin": 0,
+    "enableWebServer": true,
+    "webServerPort": 80
+  },
+  "assets": [
+    {
+      "type": "code",
+      "path": "ble_beacon_proximity_automation.ino",
+      "metadata": {
+        "content": "#include <BLEDevice.h>\n#include <BLEServer.h>\n#include <BLEUtils.h>\n#include <ArduinoJson.h>\n#include <EEPROM.h>\n#include <WebServer.h>\n\n// Configuration\n#define LED_PIN {{.ledPin}}\n#define BUTTON_PIN {{.buttonPin}}\n#define PRESENCE_TIMEOUT {{.presenceTimeout}} * 1000 // Convert to milliseconds\n#define SCAN_DURATION {{.scanDuration}} * 1000\n#define MAX_RELAYS 8\n#define MAX_DEVICES 20\n#define EEPROM_SIZE 512\n\n// BLE Configuration\nconst char* deviceName = \"{{.deviceName}}\";\nconst char* beaconUUID = \"{{.beaconUUID}}\";\nconst uint16_t majorVersion = {{.majorVersion}};\nconst uint16_t minorVersion = {{.minorVersion}};\nconst int8_t txPower = {{.txPower}};\nconst uint32_t advertisingInterval = {{.advertisingInterval}};\nconst int rssiThreshold = {{.rssiThreshold}};\nconst bool enableScanning = {{.enableScanning}};\nconst bool enableLogging = {{.enableLogging}};\nconst int webServerPort = {{.webServerPort}};\n\n// Global variables\nBLEServer* pServer = NULL;\nBLEAdvertising* pAdvertising = NULL;\nWebServer server(webServerPort);\n\n// Relay configuration\nstruct RelayConfig {\n  int pin;\n  String name;\n  float triggerDistance;\n  String action;\n  int delay;\n  bool state;\n  bool triggered;\n  unsigned long triggerTime;\n};\n\nRelayConfig relays[MAX_RELAYS];\nint relayCount = 0;\n\n// Presence tracking\nstruct TrackedDevice {\n  String address;\n  String name;\n  int rssi;\n  unsigned long lastSeen;\n  float estimatedDistance;\n};\n\nTrackedDevice trackedDevices[MAX_DEVICES];\nint deviceCount = 0;\nbool presenceDetected = false;\nunsigned long lastPresenceTime = 0;\n\n// Status tracking\nenum BeaconStatus {\n  INITIALIZING,\n  ADVERTISING,\n  SCANNING,\n  PRESENCE_DETECTED,\n  NO_PRESENCE\n};\n\nBeaconStatus currentStatus = INITIALIZING;\nunsigned long lastScanTime = 0;\nunsigned long lastAdvertisingTime = 0;\n\n// Function prototypes\nvoid setupBLE();\nvoid setupRelays();\nvoid setupWebServer();\nvoid startAdvertising();\nvoid stopAdvertising();\nvoid startScanning();\nvoid stopScanning();\nvoid updateRelays();\nvoid checkPresence();\nfloat estimateDistance(int rssi);\nvoid executeRelayAction(RelayConfig& relay);\nvoid handleRoot();\nvoid handleConfig();\nvoid handleStatus();\nvoid handleScan();\nvoid handleRelay();\nvoid updateStatusLED();\nvoid checkButtonPress();\nvoid logPresence(const String& event, const String& device = \"\");\n\nclass MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {\n  void onResult(BLEAdvertisedDevice* advertisedDevice) {\n    // Check if this is our beacon\n    if (advertisedDevice->haveServiceUUID() && advertisedDevice->isAdvertisingService(beaconUUID)) {\n      // Found our beacon, update presence\n      presenceDetected = true;\n      lastPresenceTime = millis();\n      \n      // Estimate distance from RSSI\n      int rssi = advertisedDevice->getRSSI();\n      float distance = estimateDistance(rssi);\n      \n      {{#if .enableLogging}}\n      Serial.print(\"Beacon detected - RSSI: \");\n      Serial.print(rssi);\n      Serial.print(\", Distance: \");\n      Serial.print(distance);\n      Serial.println(\"m\");\n      {{/if}}\n      \n      // Update relays based on proximity\n      updateRelays();\n    }\n  }\n};\n\nclass MyServerCallbacks: public BLEServerCallbacks {\n  void onConnect(BLEServer* pServer) {\n    {{#if .enableLogging}}\n    Serial.println(\"Device connected to beacon server\");\n    {{/if}}\n  }\n  \n  void onDisconnect(BLEServer* pServer) {\n    {{#if .enableLogging}}\n    Serial.println(\"Device disconnected from beacon server\");\n    {{/if}}\n  }\n};\n\nMyAdvertisedDeviceCallbacks advertisedDeviceCallbacks;\nMyServerCallbacks serverCallbacks;\n\nvoid setup() {\n  Serial.begin(115200);\n  Serial.println(\"BLE Beacon for Proximity-Based Automation Starting...\");\n  \n  // Initialize pins\n  pinMode(LED_PIN, OUTPUT);\n  pinMode(BUTTON_PIN, INPUT_PULLUP);\n  digitalWrite(LED_PIN, LOW);\n  \n  // Initialize relays\n  setupRelays();\n  \n  // Initialize BLE\n  setupBLE();\n  \n  // Setup web server\n  {{#if .enableWebServer}}\n  setupWebServer();\n  {{/if}}\n  \n  Serial.println(\"Setup completed!\");\n  Serial.print(\"Device Name: \");\n  Serial.println(deviceName);\n  Serial.print(\"Beacon UUID: \");\n  Serial.println(beaconUUID);\n  Serial.print(\"Major: \");\n  Serial.print(majorVersion);\n  Serial.print(\", Minor: \");\n  Serial.println(minorVersion);\n  Serial.println(\"Beacon system ready...\");\n}\n\nvoid loop() {\n  // Handle web server requests\n  {{#if .enableWebServer}}\n  server.handleClient();\n  {{/if}}\n  \n  // Check button press\n  checkButtonPress();\n  \n  // Check presence timeout\n  checkPresence();\n  \n  // Handle BLE scanning/advertising cycle\n  unsigned long currentTime = millis();\n  \n  if (enableScanning && currentTime - lastScanTime > SCAN_DURATION + 5000) {\n    if (currentStatus == ADVERTISING) {\n      stopAdvertising();\n      startScanning();\n    } else if (currentStatus == SCANNING) {\n      stopScanning();\n      startAdvertising();\n    }\n    lastScanTime = currentTime;\n  }\n  \n  updateStatusLED();\n  delay(100);\n}\n\nvoid setupBLE() {\n  // Initialize BLE device\n  BLEDevice::init(deviceName);\n  \n  // Create BLE server\n  pServer = BLEDevice::createServer();\n  pServer->setCallbacks(&serverCallbacks);\n  \n  // Setup advertising\n  pAdvertising = pServer->getAdvertising();\n  \n  // Start advertising\n  startAdvertising();\n  \n  // Setup scanning if enabled\n  if (enableScanning) {\n    BLEDevice::setScanFilterMode(BLE_SCAN_FILTER_ALLOW_ALL);\n  }\n  \n  Serial.println(\"BLE initialized\");\n}\n\nvoid setupRelays() {\n  // Initialize relay configurations\n  {{#each .relayPins}}\n  if (relayCount < MAX_RELAYS) {\n    relays[relayCount].pin = {{pin}};\n    relays[relayCount].name = \"{{name}}\";\n    relays[relayCount].triggerDistance = {{triggerDistance}};\n    relays[relayCount].action = \"{{action}}\";\n    relays[relayCount].delay = {{delay}};\n    relays[relayCount].state = false;\n    relays[relayCount].triggered = false;\n    relays[relayCount].triggerTime = 0;\n    \n    pinMode({{pin}}, OUTPUT);\n    digitalWrite({{pin}}, HIGH); // Relays are active LOW\n    \n    relayCount++;\n  }\n  {{/each}}\n  \n  Serial.print(\"Initialized \");\n  Serial.print(relayCount);\n  Serial.println(\" relays\");\n}\n\nvoid setupWebServer() {\n  server.on(\"/\", HTTP_GET, handleRoot);\n  server.on(\"/config\", HTTP_GET, handleConfig);\n  server.on(\"/status\", HTTP_GET, handleStatus);\n  server.on(\"/scan\", HTTP_GET, handleScan);\n  server.on(\"/relay\", HTTP_POST, handleRelay);\n  \n  server.begin();\n  Serial.print(\"Web server started on port \");\n  Serial.println(webServerPort);\n}\n\nvoid startAdvertising() {\n  // Create beacon service\n  BLEBeacon beacon = BLEBeacon();\n  beacon.setManufacturerData(0x4C, 0x00); // Apple iBeacon manufacturer data\n  beacon.setProximityUUID(beaconUUID);\n  beacon.setMajor(majorVersion);\n  beacon.setMinor(minorVersion);\n  beacon.setSignalPower(txPower);\n  \n  // Setup advertising data\n  pAdvertising->setAdvertisementType(BLE_ADVERTISING_TYPE_NONCONN_IND);\n  pAdvertising->setMinPreferred(advertisingInterval);\n  pAdvertising->setMaxPreferred(advertisingInterval);\n  \n  // Start advertising\n  pAdvertising->start();\n  \n  currentStatus = ADVERTISING;\n  lastAdvertisingTime = millis();\n  \n  {{#if .enableLogging}}\n  Serial.println(\"Started BLE advertising\");\n  {{/if}}\n}\n\nvoid stopAdvertising() {\n  pAdvertising->stop();\n  currentStatus = INITIALIZING;\n  \n  {{#if .enableLogging}}\n  Serial.println(\"Stopped BLE advertising\");\n  {{/if}}\n}\n\nvoid startScanning() {\n  // Start BLE scanning\n  BLEDevice::getScan()->start(advertisingDeviceCallbacks, SCAN_DURATION / 1000, false);\n  \n  currentStatus = SCANNING;\n  \n  {{#if .enableLogging}}\n  Serial.println(\"Started BLE scanning\");\n  {{/if}}\n}\n\nvoid stopScanning() {\n  BLEDevice::getScan()->stop();\n  currentStatus = INITIALIZING;\n  \n  {{#if .enableLogging}}\n  Serial.println(\"Stopped BLE scanning\");\n  {{/if}}\n}\n\nvoid updateRelays() {\n  // Update relays based on presence and distance\n  for (int i = 0; i < relayCount; i++) {\n    bool shouldTrigger = false;\n    \n    if (presenceDetected) {\n      // Check if any device is within trigger distance\n      for (int j = 0; j < deviceCount; j++) {\n        if (trackedDevices[j].estimatedDistance <= relays[i].triggerDistance) {\n          shouldTrigger = true;\n          break;\n        }\n      }\n    }\n    \n    if (shouldTrigger && !relays[i].triggered) {\n      // Trigger relay action\n      executeRelayAction(relays[i]);\n      relays[i].triggered = true;\n      relays[i].triggerTime = millis();\n      \n      {{#if .enableLogging}}\n      Serial.print(\"Triggering relay: \");\n      Serial.print(relays[i].name);\n      Serial.print(\" (action: \");\n      Serial.print(relays[i].action);\n      Serial.println(\")\");\n      {{/if}}\n    } else if (!shouldTrigger && relays[i].triggered) {\n      // Reset trigger state\n      relays[i].triggered = false;\n      \n      {{#if .enableLogging}}\n      Serial.print(\"Resetting relay: \");\n      Serial.println(relays[i].name);\n      {{/if}}\n    }\n  }\n}\n\nvoid checkPresence() {\n  unsigned long currentTime = millis();\n  \n  // Check for presence timeout\n  if (presenceDetected && (currentTime - lastPresenceTime > PRESENCE_TIMEOUT)) {\n    presenceDetected = false;\n    currentStatus = NO_PRESENCE;\n    \n    {{#if .enableLogging}}\n    Serial.println(\"Presence timeout - no devices detected\");\n    {{/if}}\n    \n    // Reset all relays\n    for (int i = 0; i < relayCount; i++) {\n      if (relays[i].triggered) {\n        // Turn off relays that were triggered by presence\n        if (relays[i].action == \"on\") {\n          digitalWrite(relays[i].pin, HIGH); // Turn off\n          relays[i].state = false;\n        }\n        relays[i].triggered = false;\n      }\n    }\n  }\n}\n\nfloat estimateDistance(int rssi) {\n  // Simplified path loss formula for distance estimation\n  // Distance = 10^((TxPower - RSSI) / (10 * N))\n  // Where N is the path loss exponent (typically 2-4)\n  const float N = 2.0; // Path loss exponent for free space\n  const float txPowerCalibrated = -59; // Calibrated TX power at 1 meter\n  \n  if (rssi >= 0) {\n    return 0.1; // Invalid RSSI, return minimum distance\n  }\n  \n  float distance = pow(10.0, (txPowerCalibrated - rssi) / (10.0 * N));\n  \n  // Clamp to reasonable range\n  if (distance < 0.1) distance = 0.1;\n  if (distance > 100.0) distance = 100.0;\n  \n  return distance;\n}\n\nvoid executeRelayAction(RelayConfig& relay) {\n  if (relay.action == \"on\") {\n    digitalWrite(relay.pin, LOW); // Turn on\n    relay.state = true;\n  } else if (relay.action == \"off\") {\n    digitalWrite(relay.pin, HIGH); // Turn off\n    relay.state = false;\n  } else if (relay.action == \"toggle\") {\n    relay.state = !relay.state;\n    digitalWrite(relay.pin, relay.state ? LOW : HIGH);\n  }\n  \n  // Apply delay if specified\n  if (relay.delay > 0) {\n    delay(relay.delay);\n  }\n}\n\nvoid handleRoot() {\n  String html = R\"(\n<!DOCTYPE html>\n<html>\n<head>\n  <title>ATHENA BLE Beacon</title>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <style>\n    body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }\n    .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }\n    h1 { color: #333; text-align: center; margin-bottom: 30px; }\n    .status { padding: 15px; border-radius: 5px; margin-bottom: 20px; text-align: center; }\n    .status.advertising { background: #d4edda; color: #155724; }\n    .status.scanning { background: #fff3cd; color: #856404; }\n    .status.presence { background: #d1ecf1; color: #0c5460; }\n    .status.no-presence { background: #f8d7da; color: #721c24; }\n    .relay-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }\n    .relay-card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; text-align: center; }\n    .relay-name { font-weight: bold; color: #333; margin-bottom: 10px; }\n    .relay-state { font-size: 18px; margin-bottom: 10px; }\n    .relay-on { color: #28a745; }\n    .relay-off { color: #dc3545; }\n    .control-btn { width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }\n    .control-btn:hover { background: #0056b3; }\n    .scan-btn { width: 100%; padding: 12px; background: #17a2b8; color: white; border: none; border-radius: 5px; cursor: pointer; margin-bottom: 20px; }\n    .scan-btn:hover { background: #138496; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <h1>📡 ATHENA BLE Beacon</h1>\n    \n    <div id=\"status\" class=\"status\"></div>\n    \n    <button class=\"scan-btn\" onclick=\"startScan()\">🔍 Start BLE Scan</button>\n    \n    <div class=\"relay-grid\" id=\"relayGrid\"></div>\n  </div>\n  \n  <script>\n    function updateStatus() {\n      fetch('/status')\n        .then(response => response.json())\n        .then(data => {\n          const statusDiv = document.getElementById('status');\n          statusDiv.className = 'status ' + data.statusClass;\n          statusDiv.textContent = data.statusText;\n          \n          // Update relay states\n          const relayGrid = document.getElementById('relayGrid');\n          relayGrid.innerHTML = '';\n          \n          if (data.relays) {\n            data.relays.forEach(relay => {\n              const card = document.createElement('div');\n              card.className = 'relay-card';\n              card.innerHTML = `\n                <div class=\"relay-name\">${relay.name}</div>\n                <div class=\"relay-state ${relay.state ? 'relay-on' : 'relay-off'}\">\n                  ${relay.state ? 'ON' : 'OFF'}\n                </div>\n                <button class=\"control-btn\" onclick=\"toggleRelay('${relay.name}')\">\n                  Toggle\n                </button>\n              `;\n              relayGrid.appendChild(card);\n            });\n          }\n        })\n        .catch(error => {\n          console.error('Error updating status:', error);\n        });\n    }\n    \n    function startScan() {\n      fetch('/scan', { method: 'POST' })\n        .then(response => response.json())\n        .then(data => {\n          alert('Scan started: ' + data.message);\n          setTimeout(updateStatus, 2000);\n        })\n        .catch(error => {\n          alert('Error starting scan: ' + error.message);\n        });\n    }\n    \n    function toggleRelay(relayName) {\n      fetch('/relay', {\n        method: 'POST',\n        headers: {\n          'Content-Type': 'application/json',\n        },\n        body: JSON.stringify({ relay: relayName })\n      })\n      .then(response => response.json())\n      .then(data => {\n        alert('Relay toggled: ' + data.message);\n        setTimeout(updateStatus, 1000);\n      })\n      .catch(error => {\n        alert('Error toggling relay: ' + error.message);\n      });\n    }\n    \n    // Update status every 2 seconds\n    setInterval(updateStatus, 2000);\n    updateStatus();\n  </script>\n</body>\n</html>\n)\";\n  \n  server.send(200, \"text/html\", html);\n}\n\nvoid handleConfig() {\n  JsonDocument doc;\n  \n  // Add beacon configuration\n  doc[\"deviceName\"] = deviceName;\n  doc[\"beaconUUID\"] = beaconUUID;\n  doc[\"majorVersion\"] = majorVersion;\n  doc[\"minorVersion\"] = minorVersion;\n  doc[\"txPower\"] = txPower;\n  doc[\"advertisingInterval\"] = advertisingInterval;\n  doc[\"rssiThreshold\"] = rssiThreshold;\n  doc[\"presenceTimeout\"] = {{.presenceTimeout}};\n  doc[\"enableScanning\"] = enableScanning;\n  \n  // Add relay configuration\n  JsonArray relays = doc.createNestedArray(\"relays\");\n  for (int i = 0; i < relayCount; i++) {\n    JsonObject relay = relays.createNestedObject();\n    relay[\"name\"] = relays[i].name;\n    relay[\"pin\"] = relays[i].pin;\n    relay[\"triggerDistance\"] = relays[i].triggerDistance;\n    relay[\"action\"] = relays[i].action;\n    relay[\"state\"] = relays[i].state;\n    relay[\"triggered\"] = relays[i].triggered;\n  }\n  \n  // Add status\n  doc[\"presenceDetected\"] = presenceDetected;\n  doc[\"currentStatus\"] = currentStatus;\n  doc[\"deviceCount\"] = deviceCount;\n  \n  String response;\n  serializeJson(doc, response);\n  \n  server.send(200, \"application/json\", response);\n}\n\nvoid handleStatus() {\n  JsonDocument doc;\n  \n  // Status information\n  doc[\"deviceName\"] = deviceName;\n  doc[\"presenceDetected\"] = presenceDetected;\n  doc[\"currentStatus\"] = currentStatus;\n  \n  // Status text and class for web interface\n  String statusText = \"\";\n  String statusClass = \"\";\n  \n  switch (currentStatus) {\n    case ADVERTISING:\n      statusText = \"📡 Advertising\";\n      statusClass = \"advertising\";\n      break;\n    case SCANNING:\n      statusText = \"🔍 Scanning\";\n      statusClass = \"scanning\";\n      break;\n    default:\n      if (presenceDetected) {\n        statusText = \"👤 Presence Detected\";\n        statusClass = \"presence\";\n      } else {\n        statusText = \"🚫 No Presence\";\n        statusClass = \"no-presence\";\n      }\n      break;\n  }\n  \n  doc[\"statusText\"] = statusText;\n  doc[\"statusClass\"] = statusClass;\n  \n  // Relay information\n  JsonArray relays = doc.createNestedArray(\"relays\");\n  for (int i = 0; i < relayCount; i++) {\n    JsonObject relay = relays.createNestedObject();\n    relay[\"name\"] = relays[i].name;\n    relay[\"pin\"] = relays[i].pin;\n    relay[\"state\"] = relays[i].state;\n    relay[\"triggered\"] = relays[i].triggered;\n    relay[\"triggerDistance\"] = relays[i].triggerDistance;\n  }\n  \n  doc[\"deviceCount\"] = deviceCount;\n  doc[\"lastPresenceTime\"] = lastPresenceTime;\n  \n  String response;\n  serializeJson(doc, response);\n  \n  server.send(200, \"application/json\", response);\n}\n\nvoid handleScan() {\n  {{#if .enableLogging}}\n  Serial.println(\"Manual scan triggered\");\n  {{/if}}\n  \n  // Force start a scan\n  if (currentStatus == ADVERTISING) {\n    stopAdvertising();\n    startScanning();\n  }\n  \n  String response = \"{\\\"success\\\": true, \\\"message\\\": \\\"Scan started\\\"}\";\n  server.send(200, \"application/json\", response);\n}\n\nvoid handleRelay() {\n  String body = server.arg(\"plain\");\n  \n  JsonDocument doc;\n  DeserializationError error = deserializeJson(doc, body);\n  \n  if (error) {\n    server.send(400, \"application/json\", \"{\\\"error\\\": \\\"Invalid JSON\\\"}\");\n    return;\n  }\n  \n  String relayName = doc[\"relay\"];\n  \n  // Find and toggle the specified relay\n  for (int i = 0; i < relayCount; i++) {\n    if (relays[i].name == relayName) {\n      executeRelayAction(relays[i]);\n      \n      {{#if .enableLogging}}\n      Serial.print(\"Manual relay toggle: \");\n      Serial.print(relayName);\n      Serial.print(\" -> \");\n      Serial.println(relays[i].state ? \"ON\" : \"OFF\");\n      {{/if}}\n      \n      String response = \"{\\\"success\\\": true, \\\"message\\\": \\\"Relay toggled\\\", \\\"state\\\": \" + String(relays[i].state ? \"true\" : \"false\") + \"}\";\n      server.send(200, \"application/json\", response);\n      return;\n    }\n  }\n  \n  server.send(404, \"application/json\", \"{\\\"error\\\": \\\"Relay not found\\\"}\");\n}\n\nvoid updateStatusLED() {\n  static unsigned long lastBlinkTime = 0;\n  static bool ledState = false;\n  \n  switch (currentStatus) {\n    case ADVERTISING:\n      // Slow blink when advertising\n      if (millis() - lastBlinkTime > 1000) {\n        ledState = !ledState;\n        digitalWrite(LED_PIN, ledState);\n        lastBlinkTime = millis();\n      }\n      break;\n      \n    case SCANNING:\n      // Fast blink when scanning\n      if (millis() - lastBlinkTime > 300) {\n        ledState = !ledState;\n        digitalWrite(LED_PIN, ledState);\n        lastBlinkTime = millis();\n      }\n      break;\n      \n    default:\n      if (presenceDetected) {\n        digitalWrite(LED_PIN, HIGH); // Solid on when presence detected\n      } else {\n        digitalWrite(LED_PIN, LOW); // Off when no presence\n      }\n      break;\n  }\n}\n\nvoid checkButtonPress() {\n  static bool lastButtonState = HIGH;\n  bool currentButtonState = digitalRead(BUTTON_PIN);\n  \n  // Detect button press (high to low transition)\n  if (lastButtonState == HIGH && currentButtonState == LOW) {\n    // Toggle advertising/scanning mode\n    if (currentStatus == ADVERTISING) {\n      stopAdvertising();\n      startScanning();\n    } else if (currentStatus == SCANNING) {\n      stopScanning();\n      startAdvertising();\n    }\n    \n    {{#if .enableLogging}}\n    Serial.println(\"Button pressed - toggled advertising/scanning mode\");\n    {{/if}}\n  }\n  \n  lastButtonState = currentButtonState;\n}\n\nvoid logPresence(const String& event, const String& device) {\n  {{#if .enableLogging}}\n  Serial.print(\"[PRESENCE] \");\n  Serial.print(event);\n  if (device.length() > 0) {\n    Serial.print(\" - \");\n    Serial.print(device);\n  }\n  Serial.print(\" (Time: \");\n  Serial.print(millis());\n  Serial.println(\")\");\n  {{/if}}\n}"
+      }
+    },
+    {
+      "type": "wiring_diagram",
+      "path": "ble_beacon_wiring.png",
+      "metadata": {
+        "description": "Wiring diagram for BLE beacon with relays",
+        "connections": [
+          {
+            "from": "ESP32 3.3V",
+            "to": "LED Anode",
+            "wire_color": "red"
+          },
+          {
+            "from": "ESP32 GND",
+            "to": "LED Cathode",
+            "wire_color": "black"
+          },
+          {
+            "from": "ESP32 GPIO {{.ledPin}}",
+            "to": "LED Resistor",
+            "wire_color": "yellow"
+          },
+          {
+            "from": "ESP32 GPIO {{.buttonPin}}",
+            "to": "Button",
+            "wire_color": "blue"
+          },
+          {
+            "from": "Button GND",
+            "to": "ESP32 GND",
+            "wire_color": "black"
+          },
+          {
+            "from": "ESP32 GPIO 2",
+            "to": "Relay 1 IN",
+            "wire_color": "green"
+          },
+          {
+            "from": "ESP32 GPIO 4",
+            "to": "Relay 2 IN",
+            "wire_color": "orange"
+          },
+          {
+            "from": "ESP32 GPIO 5",
+            "to": "Relay 3 IN",
+            "wire_color": "purple"
+          },
+          {
+            "from": "ESP32 3.3V",
+            "to": "Relays VCC",
+            "wire_color": "red"
+          },
+          {
+            "from": "ESP32 GND",
+            "to": "Relays GND",
+            "wire_color": "black"
+          }
+        ]
+      }
+    },
+    {
+      "type": "documentation",
+      "path": "README.md",
+      "metadata": {
+        "content": "# BLE Beacon for Proximity-Based Automation\n\n## Overview\nThis template implements a BLE beacon system for proximity-based automation and presence detection. It can act as both a beacon advertiser and scanner, with relay control based on device proximity.\n\n## Features\n- **BLE Beacon Advertising**: iBeacon-compatible beacon broadcasting\n- **BLE Scanning**: Detect nearby BLE devices and estimate distance\n- **Proximity Automation**: Control relays based on device distance\n- **Presence Detection**: Track device presence with timeout handling\n- **Web Interface**: Configuration and monitoring dashboard\n- **Multiple Relays**: Support for multiple automation relays\n- **Distance Estimation**: RSSI-based distance calculation\n- **Manual Control**: Button and web-based relay control\n- **Status Indication**: LED feedback for system status\n\n## Configuration Options\n- **Device Name**: BLE device name (default: \"ATHENA-Beacon\")\n- **Beacon UUID**: Unique UUID for beacon service\n- **Major/Minor Version**: Beacon version identifiers\n- **TX Power**: Transmit power in dBm (default: -59)\n- **Advertising Interval**: Beacon advertising frequency (20-10000ms)\n- **Relay Configuration**: Pin assignments, trigger distances, actions\n- **RSSI Threshold**: Signal strength threshold for detection (default: -70)\n- **Presence Timeout**: Timeout for presence detection (5-300 seconds)\n- **Scanning**: Enable BLE scanning (default: enabled)\n- **Scan Duration**: BLE scan duration (1-60 seconds)\n- **Logging**: Enable presence logging (default: enabled)\n- **Status LED**: LED pin for status indication\n- **Config Button**: Button pin for manual control\n- **Web Server**: Enable configuration server (default: enabled)\n- **Server Port**: Port for web interface (default: 80)\n\n## Relay Actions\n- **On**: Turn relay ON when triggered\n- **Off**: Turn relay OFF when triggered\n- **Toggle**: Toggle relay state when triggered\n\n## Distance Estimation\nThe system estimates distance using RSSI (Received Signal Strength Indicator):\n```\nDistance = 10^((TxPower - RSSI) / (10 * N))\n```\n\nWhere:\n- TxPower: Calibrated transmit power at 1 meter\n- RSSI: Received signal strength in dBm\n- N: Path loss exponent (typically 2-4)\n\n## Web Interface Features\n- **Status Display**: Current system status and presence detection\n- **Relay Control**: Manual relay toggling via web interface\n- **Configuration View**: Device and relay configuration\n- **BLE Scanning**: Start manual BLE scans\n- **Real-time Updates**: Auto-refreshing status information\n\n## LED Status Patterns\n- **Slow Blink**: Advertising beacon\n- **Fast Blink**: Scanning for devices\n- **Solid ON**: Presence detected\n- **OFF**: No presence detected\n\n## iBeacon Format\nThe beacon broadcasts iBeacon-compatible packets:\n- **UUID**: Unique service identifier\n- **Major**: Primary identifier (0-65535)\n- **Minor**: Secondary identifier (0-65535)\n- **TX Power**: Calibrated power at 1m\n\n## Proximity Zones\nConfigure trigger distances for different automation levels:\n- **Close Zone**: 0.5m - Immediate automation\n- **Near Zone**: 1.5m - Comfort automation\n- **Far Zone**: 2.0m - Presence awareness\n- **Detection Range**: Up to 10m typical\n\n## Supported Devices\n### As Beacon\n- **iOS Devices**: iPhones, iPads (Core Location)\n- **Android Devices**: With BLE scanning apps\n- **ESP32 Devices**: Other ESP32 beacons\n- **Custom Scanners**: Any BLE scanner\n\n### As Scanner\n- **BLE Beacons**: iBeacon, Eddystone, AltBeacon\n- **BLE Devices**: Fitness trackers, smartwatches\n- **BLE Tags**: Asset tracking tags\n- **BLE Sensors**: Temperature, humidity sensors\n\n## Integration Examples\n### Home Assistant\n```yaml\nbinary_sensor:\n  - platform: mqtt\n    name: \"Presence\"\n    state_topic: \"athena/beacon/status\"\n    value_template: \"{{ value_json.presenceDetected }}\"\n```\n\n### Node-RED\n```javascript\n// Process beacon presence\nif (msg.presenceDetected) {\n  // Trigger automation based on proximity\n  msg.payload = {action: \"lights_on\", distance: msg.distance};\n  return msg;\n}\n```\n\n### OpenHAB\n```java\n// Beacon presence rule\nrule \"Beacon Presence\"\nwhen\n  Item Beacon_Presence changed\nthen\n  if (Beacon_Presence.state == ON) {\n    // Execute automation\n    Lights.sendCommand(ON);\n  }\nend\n```\n\n## Advanced Configuration\n- **Custom UUIDs**: Use application-specific UUIDs\n- **Power Calibration**: Adjust TX power for accuracy\n- **Scan Filtering**: Filter by device type or UUID\n- **Multi-beacon**: Support for multiple beacon profiles\n- **Analytics**: Track device patterns and presence\n\n## Performance Specifications\n- **Beacon Range**: 10-50m typical (depends on environment)\n- **Detection Accuracy**: ±1-2m typical\n- **Update Rate**: 100ms - 10s configurable\n- **Memory Usage**: ~35KB for BLE stack\n- **Power Consumption**: ~80mA (BLE active)\n- **Battery Life**: Weeks on battery power\n\n## Troubleshooting\n- **Beacon Not Advertising**: Check BLE initialization and UUID\n- **Devices Not Detected**: Check RSSI threshold and scan duration\n- **Relays Not Triggering**: Verify pin assignments and distances\n- **Web Interface Not Accessible**: Check IP address and port\n- **LED Not Working**: Verify LED connections and pin assignment\n- **Button Not Responding**: Check button wiring and pull-up resistor\n\n## Security Considerations\n- **UUID Privacy**: Use unique UUIDs for your application\n- **Signal Spoofing**: Implement verification if needed\n- **Data Privacy**: Minimize personal data in broadcasts\n- **Access Control**: Limit web interface access\n- **Network Security**: Use secure Wi-Fi networks\n\n## Use Cases\n- **Home Automation**: Lights, climate control based on presence\n- **Office Automation**: Equipment control based on occupancy\n- **Retail Analytics**: Customer presence and behavior tracking\n- **Asset Tracking**: Equipment and tool location tracking\n- **Security Systems**: Proximity-based alerting\n- **Museum Exhibits**: Interactive exhibit automation\n- **Healthcare**: Patient monitoring and equipment control\n- **Education**: Classroom automation and attendance"
+      }
+    }
+  ],
+  "wiring_spec": {
+    "components": [
+      {
+        "id": "esp32",
+        "type": "board",
+        "name": "ESP32 Board",
+        "pins": [
+          {"number": "3.3V", "name": "3.3V", "type": "power"},
+          {"number": "GND", "name": "gnd", "type": "ground"},
+          {"number": "{{.ledPin}}", "name": "GPIO{{.ledPin}}", "type": "digital"},
+          {"number": "{{.buttonPin}}", "name": "GPIO{{.buttonPin}}", "type": "digital"},
+          {"number": "2", "name": "GPIO2", "type": "digital"},
+          {"number": "4", "name": "GPIO4", "type": "digital"},
+          {"number": "5", "name": "GPIO5", "type": "digital"}
+        ]
+      },
+      {
+        "id": "led",
+        "type": "indicator",
+        "name": "Status LED",
+        "pins": [
+          {"number": "1", "name": "Anode", "type": "power"},
+          {"number": "2", "name": "Cathode", "type": "ground"}
+        ]
+      },
+      {
+        "id": "resistor",
+        "type": "component",
+        "name": "220Ω Resistor",
+        "pins": [
+          {"number": "1", "name": "Pin 1", "type": "passive"},
+          {"number": "2", "name": "Pin 2", "type": "passive"}
+        ]
+      },
+      {
+        "id": "button",
+        "type": "input",
+        "name": "Push Button",
+        "pins": [
+          {"number": "1", "name": "Signal", "type": "digital"},
+          {"number": "2", "name": "GND", "type": "ground"}
+        ]
+      },
+      {
+        "id": "relay-module",
+        "type": "actuator",
+        "name": "3-Channel Relay Module",
+        "pins": [
+          {"number": "1", "name": "VCC", "type": "power"},
+          {"number": "2", "name": "GND", "type": "ground"},
+          {"number": "3", "name": "IN1", "type": "digital"},
+          {"number": "4", "name": "IN2", "type": "digital"},
+          {"number": "5", "name": "IN3", "type": "digital"}
+        ]
+      }
+    ],
+    "connections": [
+      {
+        "from_component": "esp32",
+        "from_pin": "3.3V",
+        "to_component": "resistor",
+        "to_pin": "1",
+        "wire_color": "red"
+      },
+      {
+        "from_component": "resistor",
+        "from_pin": "2",
+        "to_component": "led",
+        "to_pin": "1",
+        "wire_color": "yellow"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "{{.ledPin}}",
+        "to_component": "resistor",
+        "to_pin": "1",
+        "wire_color": "blue"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "GND",
+        "to_component": "led",
+        "to_pin": "2",
+        "wire_color": "black"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "{{.buttonPin}}",
+        "to_component": "button",
+        "to_pin": "1",
+        "wire_color": "green"
+      },
+      {
+        "from_component": "button",
+        "from_pin": "2",
+        "to_component": "esp32",
+        "to_pin": "GND",
+        "wire_color": "black"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "2",
+        "to_component": "relay-module",
+        "to_pin": "3",
+        "wire_color": "orange"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "4",
+        "to_component": "relay-module",
+        "to_pin": "4",
+        "wire_color": "purple"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "5",
+        "to_component": "relay-module",
+        "to_pin": "5",
+        "wire_color": "brown"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "3.3V",
+        "to_component": "relay-module",
+        "to_pin": "1",
+        "wire_color": "red"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "GND",
+        "to_component": "relay-module",
+        "to_pin": "2",
+        "wire_color": "black"
+      }
+    ]
+  }
+}

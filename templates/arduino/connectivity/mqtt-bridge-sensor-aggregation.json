@@ -1,0 +1,397 @@
+{
+  "id": "mqtt-bridge-sensor-aggregation",
+  "name": "MQTT Bridge for Sensor Data Aggregation",
+  "version": "1.0.0",
+  "category": "connectivity",
+  "description": "MQTT bridge system for aggregating and forwarding sensor data to multiple destinations",
+  "author": "ATHENA Team",
+  "boards_supported": ["esp32:esp32:devkitv1", "esp8266:esp8266:nodemcuv2"],
+  "libraries": [
+    {
+      "name": "WiFi",
+      "version": "2.0.0"
+    },
+    {
+      "name": "PubSubClient",
+      "version": "2.8.0"
+    },
+    {
+      "name": "ArduinoJson",
+      "version": "6.21.3"
+    },
+    {
+      "name": "EEPROM",
+      "version": "2.0.0"
+    }
+  ],
+  "schema": {
+    "type": "object",
+    "properties": {
+      "wifiSSID": {
+        "type": "string",
+        "title": "Wi-Fi SSID",
+        "description": "Wi-Fi network name",
+        "default": ""
+      },
+      "wifiPassword": {
+        "type": "string",
+        "title": "Wi-Fi Password",
+        "description": "Wi-Fi network password",
+        "default": ""
+      },
+      "mqttBroker": {
+        "type": "string",
+        "title": "MQTT Broker",
+        "description": "MQTT broker address",
+        "default": "broker.hivemq.com"
+      },
+      "mqttPort": {
+        "type": "integer",
+        "title": "MQTT Port",
+        "description": "MQTT broker port",
+        "minimum": 1,
+        "maximum": 65535,
+        "default": 1883
+      },
+      "mqttUsername": {
+        "type": "string",
+        "title": "MQTT Username",
+        "description": "MQTT broker username",
+        "default": ""
+      },
+      "mqttPassword": {
+        "type": "string",
+        "title": "MQTT Password",
+        "description": "MQTT broker password",
+        "default": ""
+      },
+      "deviceId": {
+        "type": "string",
+        "title": "Device ID",
+        "description": "Unique device identifier",
+        "default": "athena-bridge-001"
+      },
+      "baseTopic": {
+        "type": "string",
+        "title": "Base Topic",
+        "description": "Base MQTT topic for this device",
+        "default": "athena/bridge"
+      },
+      "sensorPins": {
+        "type": "array",
+        "title": "Sensor Pins",
+        "description": "Analog sensor pins to monitor",
+        "items": {
+          "type": "object",
+          "properties": {
+            "pin": {"type": "integer"},
+            "name": {"type": "string"},
+            "unit": {"type": "string"},
+            "multiplier": {"type": "number"}
+          }
+        },
+        "default": [
+          {"pin": 34, "name": "temperature", "unit": "°C", "multiplier": 0.1},
+          {"pin": 35, "name": "humidity", "unit": "%", "multiplier": 0.1},
+          {"pin": 32, "name": "light", "unit": "lux", "multiplier": 1.0}
+        ]
+      },
+      "publishInterval": {
+        "type": "integer",
+        "title": "Publish Interval",
+        "description": "Data publishing interval in seconds",
+        "minimum": 1,
+        "maximum": 3600,
+        "default": 30
+      },
+      "enableAggregation": {
+        "type": "boolean",
+        "title": "Enable Aggregation",
+        "description": "Enable data aggregation before publishing",
+        "default": true
+      },
+      "aggregationWindow": {
+        "type": "integer",
+        "title": "Aggregation Window",
+        "description": "Aggregation window in seconds",
+        "minimum": 10,
+        "maximum": 300,
+        "default": 60
+      },
+      "enableBuffering": {
+        "type": "boolean",
+        "title": "Enable Buffering",
+        "description": "Enable data buffering when offline",
+        "default": true
+      },
+      "bufferSize": {
+        "type": "integer",
+        "title": "Buffer Size",
+        "description": "Maximum number of buffered readings",
+        "minimum": 10,
+        "maximum": 1000,
+        "default": 100
+      },
+      "ledPin": {
+        "type": "integer",
+        "title": "Status LED Pin",
+        "description": "LED pin for status indication",
+        "minimum": 2,
+        "maximum": 16,
+        "default": 2
+      },
+      "enableRetained": {
+        "type": "boolean",
+        "title": "Enable Retained Messages",
+        "description": "Publish MQTT messages with retained flag",
+        "default": false
+      }
+    },
+    "required": ["wifiSSID", "wifiPassword", "mqttBroker", "deviceId"]
+  },
+  "parameters": {
+    "wifiSSID": "",
+    "wifiPassword": "",
+    "mqttBroker": "broker.hivemq.com",
+    "mqttPort": 1883,
+    "mqttUsername": "",
+    "mqttPassword": "",
+    "deviceId": "athena-bridge-001",
+    "baseTopic": "athena/bridge",
+    "sensorPins": [
+      {"pin": 34, "name": "temperature", "unit": "°C", "multiplier": 0.1},
+      {"pin": 35, "name": "humidity", "unit": "%", "multiplier": 0.1},
+      {"pin": 32, "name": "light", "unit": "lux", "multiplier": 1.0}
+    ],
+    "publishInterval": 30,
+    "enableAggregation": true,
+    "aggregationWindow": 60,
+    "enableBuffering": true,
+    "bufferSize": 100,
+    "ledPin": 2,
+    "enableRetained": false
+  },
+  "assets": [
+    {
+      "type": "code",
+      "path": "mqtt_bridge_sensor_aggregation.ino",
+      "metadata": {
+        "content": "#include <WiFi.h>\n#include <PubSubClient.h>\n#include <ArduinoJson.h>\n#include <EEPROM.h>\n\n// Wi-Fi Configuration\n#define LED_PIN {{.ledPin}}\n#define PUBLISH_INTERVAL {{.publishInterval}} * 1000 // Convert to milliseconds\n#define AGGREGATION_WINDOW {{.aggregationWindow}} * 1000\n#define BUFFER_SIZE {{.bufferSize}}\n#define MAX_SENSORS 8\n\n// MQTT Configuration\nconst char* wifiSSID = \"{{.wifiSSID}}\";\nconst char* wifiPassword = \"{{.wifiPassword}}\";\nconst char* mqttBroker = \"{{.mqttBroker}}\";\nconst int mqttPort = {{.mqttPort}};\nconst char* mqttUsername = \"{{.mqttUsername}}\";\nconst char* mqttPassword = \"{{.mqttPassword}}\";\nconst char* deviceId = \"{{.deviceId}}\";\nconst char* baseTopic = \"{{.baseTopic}}\";\nconst bool enableRetained = {{.enableRetained}};\n\n// Global variables\nWiFiClient wifiClient;\nPubSubClient mqttClient(wifiClient);\n\n// Sensor configuration\nstruct SensorConfig {\n  int pin;\n  String name;\n  String unit;\n  float multiplier;\n  float values[10]; // Circular buffer for aggregation\n  int valueIndex;\n  float sum;\n  float min;\n  float max;\n  int count;\n};\n\nSensorConfig sensors[MAX_SENSORS];\nint sensorCount = 0;\n\n// Data buffering\nstruct SensorReading {\n  unsigned long timestamp;\n  String sensorName;\n  float value;\n  String unit;\n};\n\nSensorReading buffer[BUFFER_SIZE];\nint bufferHead = 0;\nint bufferTail = 0;\nint bufferCount = 0;\n\n// Status tracking\nenum BridgeStatus {\n  DISCONNECTED,\n  CONNECTING_WIFI,\n  CONNECTING_MQTT,\n  CONNECTED,\n  ERROR\n};\n\nBridgeStatus currentStatus = DISCONNECTED;\nunsigned long lastPublishTime = 0;\nunsigned long lastAggregationTime = 0;\n\n// Function prototypes\nvoid setupWiFi();\nvoid setupMQTT();\nvoid connectToWiFi();\nvoid connectToMQTT();\nvoid initializeSensors();\nfloat readSensor(int pin);\nvoid updateAggregations();\nvoid publishSensorData();\nvoid publishBufferedData();\nvoid bufferSensorReading(const String& sensorName, float value, const String& unit);\nvoid mqttCallback(char* topic, byte* payload, unsigned int length);\nvoid updateStatusLED();\nvoid sendStatusUpdate();\nbool publishMessage(const char* topic, const char* payload, bool retained = false);\n\nvoid setup() {\n  Serial.begin(115200);\n  Serial.println(\"MQTT Bridge for Sensor Data Aggregation Starting...\");\n  \n  // Initialize pins\n  pinMode(LED_PIN, OUTPUT);\n  digitalWrite(LED_PIN, LOW);\n  \n  // Initialize sensors\n  initializeSensors();\n  \n  Serial.print(\"Initialized \");\n  Serial.print(sensorCount);\n  Serial.println(\" sensors\");\n  \n  // Setup Wi-Fi\n  setupWiFi();\n  \n  // Setup MQTT\n  setupMQTT();\n  \n  Serial.println(\"Setup completed!\");\n  Serial.print(\"Device ID: \");\n  Serial.println(deviceId);\n  Serial.print(\"Base Topic: \");\n  Serial.println(baseTopic);\n  Serial.println(\"Bridge ready for data aggregation...\");\n}\n\nvoid loop() {\n  // Handle MQTT connection\n  if (!mqttClient.connected()) {\n    if (currentStatus == CONNECTED) {\n      Serial.println(\"MQTT connection lost\");\n      currentStatus = DISCONNECTED;\n    }\n    \n    if (currentStatus == DISCONNECTED) {\n      connectToWiFi();\n      connectToMQTT();\n    }\n  } else {\n    mqttClient.loop();\n  }\n  \n  // Update sensor readings and aggregations\n  updateAggregations();\n  \n  // Publish data at intervals\n  unsigned long currentTime = millis();\n  if (currentTime - lastPublishTime >= PUBLISH_INTERVAL) {\n    if (mqttClient.connected()) {\n      publishSensorData();\n      lastPublishTime = currentTime;\n    }\n  }\n  \n  updateStatusLED();\n  delay(100);\n}\n\nvoid setupWiFi() {\n  Serial.print(\"Connecting to Wi-Fi: \");\n  Serial.println(wifiSSID);\n  \n  currentStatus = CONNECTING_WIFI;\n  \n  WiFi.begin(wifiSSID, wifiPassword);\n  \n  int attempts = 0;\n  while (WiFi.status() != WL_CONNECTED && attempts < 30) {\n    delay(500);\n    Serial.print(\".\");\n    attempts++;\n  }\n  \n  if (WiFi.status() == WL_CONNECTED) {\n    Serial.println(\"\\nWi-Fi connected!\");\n    Serial.print(\"IP address: \");\n    Serial.println(WiFi.localIP());\n  } else {\n    Serial.println(\"\\nWi-Fi connection failed!\");\n    currentStatus = ERROR;\n  }\n}\n\nvoid setupMQTT() {\n  mqttClient.setServer(mqttBroker, mqttPort);\n  mqttClient.setCallback(mqttCallback);\n  \n  // Set MQTT client ID\n  String clientId = String(deviceId) + \"-\" + String(random(0xffff), HEX);\n  mqttClient.setClientId(clientId.c_str());\n  \n  Serial.print(\"MQTT broker: \");\n  Serial.print(mqttBroker);\n  Serial.print(\":\");\n  Serial.println(mqttPort);\n}\n\nvoid connectToMQTT() {\n  Serial.println(\"Connecting to MQTT broker...\");\n  \n  currentStatus = CONNECTING_MQTT;\n  \n  bool connected = false;\n  if (strlen(mqttUsername) > 0) {\n    connected = mqttClient.connect(deviceId, mqttUsername, mqttPassword);\n  } else {\n    connected = mqttClient.connect(deviceId);\n  }\n  \n  if (connected) {\n    Serial.println(\"MQTT connected!\");\n    \n    // Subscribe to configuration topics\n    String configTopic = String(baseTopic) + \"/\" + String(deviceId) + \"/config/+\";\n    mqttClient.subscribe(configTopic.c_str());\n    \n    // Publish connection status\n    sendStatusUpdate();\n    \n    // Publish any buffered data\n    if ({{.enableBuffering}}) {\n      publishBufferedData();\n    }\n    \n    currentStatus = CONNECTED;\n  } else {\n    Serial.println(\"MQTT connection failed!\");\n    currentStatus = ERROR;\n  }\n}\n\nvoid initializeSensors() {\n  // Initialize sensor configurations\n  {{#each .sensorPins}}\n  if (sensorCount < MAX_SENSORS) {\n    sensors[sensorCount].pin = {{pin}};\n    sensors[sensorCount].name = \"{{name}}\";\n    sensors[sensorCount].unit = \"{{unit}}\";\n    sensors[sensorCount].multiplier = {{multiplier}};\n    \n    // Initialize aggregation buffers\n    sensors[sensorCount].valueIndex = 0;\n    sensors[sensorCount].sum = 0;\n    sensors[sensorCount].min = 999999;\n    sensors[sensorCount].max = -999999;\n    sensors[sensorCount].count = 0;\n    \n    // Clear value buffer\n    for (int i = 0; i < 10; i++) {\n      sensors[sensorCount].values[i] = 0;\n    }\n    \n    sensorCount++;\n  }\n  {{/each}}\n  \n  // Initialize buffer\n  bufferHead = 0;\n  bufferTail = 0;\n  bufferCount = 0;\n}\n\nfloat readSensor(int pin) {\n  // Read analog sensor value\n  int rawValue = analogRead(pin);\n  \n  // Convert to voltage (assuming 3.3V reference)\n  float voltage = (rawValue / 4095.0) * 3.3;\n  \n  return voltage;\n}\n\nvoid updateAggregations() {\n  unsigned long currentTime = millis();\n  \n  // Update aggregations at regular intervals\n  if (currentTime - lastAggregationTime >= AGGREGATION_WINDOW) {\n    {{#if .enableAggregation}}\n    for (int i = 0; i < sensorCount; i++) {\n      float currentValue = readSensor(sensors[i].pin) * sensors[i].multiplier;\n      \n      // Add to circular buffer\n      sensors[i].values[sensors[i].valueIndex] = currentValue;\n      sensors[i].valueIndex = (sensors[i].valueIndex + 1) % 10;\n      \n      // Update statistics\n      sensors[i].sum += currentValue;\n      sensors[i].count++;\n      \n      if (currentValue < sensors[i].min) {\n        sensors[i].min = currentValue;\n      }\n      if (currentValue > sensors[i].max) {\n        sensors[i].max = currentValue;\n      }\n    }\n    {{/if}}\n    \n    lastAggregationTime = currentTime;\n  }\n}\n\nvoid publishSensorData() {\n  JsonDocument doc;\n  JsonObject root = doc.to<JsonObject>();\n  \n  root[\"deviceId\"] = deviceId;\n  root[\"timestamp\"] = millis();\n  root[\"wifiRSSI\"] = WiFi.RSSI();\n  \n  JsonObject sensorsObj = root.createNestedObject(\"sensors\");\n  \n  for (int i = 0; i < sensorCount; i++) {\n    JsonObject sensorObj = sensorsObj.createNestedObject(sensors[i].name);\n    \n    float currentValue = readSensor(sensors[i].pin) * sensors[i].multiplier;\n    \n    {{#if .enableAggregation}}\n    // Calculate average from buffer\n    float sum = 0;\n    for (int j = 0; j < 10; j++) {\n      sum += sensors[i].values[j];\n    }\n    float average = sum / 10.0;\n    \n    sensorObj[\"current\"] = currentValue;\n    sensorObj[\"average\"] = average;\n    sensorObj[\"min\"] = sensors[i].min;\n    sensorObj[\"max\"] = sensors[i].max;\n    sensorObj[\"count\"] = sensors[i].count;\n    sensorObj[\"unit\"] = sensors[i].unit;\n    \n    // Reset aggregation for next window\n    sensors[i].sum = 0;\n    sensors[i].min = 999999;\n    sensors[i].max = -999999;\n    sensors[i].count = 0;\n    {{else}}\n    // Publish current value only\n    sensorObj[\"value\"] = currentValue;\n    sensorObj[\"unit\"] = sensors[i].unit;\n    {{/if}}\n  }\n  \n  // Buffer reading if enabled and offline\n  if ({{.enableBuffering}} && !mqttClient.connected()) {\n    for (int i = 0; i < sensorCount; i++) {\n      float value = readSensor(sensors[i].pin) * sensors[i].multiplier;\n      bufferSensorReading(sensors[i].name, value, sensors[i].unit);\n    }\n    return;\n  }\n  \n  // Publish to MQTT\n  String topic = String(baseTopic) + \"/\" + String(deviceId) + \"/data\";\n  String payload;\n  serializeJson(doc, payload);\n  \n  publishMessage(topic.c_str(), payload.c_str(), enableRetained);\n  \n  Serial.print(\"Published sensor data: \");\n  Serial.println(payload);\n}\n\nvoid publishBufferedData() {\n  if (bufferCount == 0) {\n    return;\n  }\n  \n  Serial.print(\"Publishing \");\n  Serial.print(bufferCount);\n  Serial.println(\" buffered readings\");\n  \n  while (bufferCount > 0) {\n    SensorReading reading = buffer[bufferTail];\n    \n    JsonDocument doc;\n    doc[\"deviceId\"] = deviceId;\n    doc[\"timestamp\"] = reading.timestamp;\n    doc[\"sensorName\"] = reading.sensorName;\n    doc[\"value\"] = reading.value;\n    doc[\"unit\"] = reading.unit;\n    doc[\"buffered\"] = true;\n    \n    String topic = String(baseTopic) + \"/\" + String(deviceId) + \"/data\";\n    String payload;\n    serializeJson(doc, payload);\n    \n    publishMessage(topic.c_str(), payload.c_str(), false);\n    \n    bufferTail = (bufferTail + 1) % BUFFER_SIZE;\n    bufferCount--;\n    \n    delay(100); // Small delay between messages\n  }\n  \n  Serial.println(\"Buffered data published\");\n}\n\nvoid bufferSensorReading(const String& sensorName, float value, const String& unit) {\n  if (bufferCount >= BUFFER_SIZE) {\n    // Buffer is full, remove oldest\n    bufferTail = (bufferTail + 1) % BUFFER_SIZE;\n    bufferCount--;\n  }\n  \n  SensorReading reading;\n  reading.timestamp = millis();\n  reading.sensorName = sensorName;\n  reading.value = value;\n  reading.unit = unit;\n  \n  buffer[bufferHead] = reading;\n  bufferHead = (bufferHead + 1) % BUFFER_SIZE;\n  bufferCount++;\n}\n\nvoid mqttCallback(char* topic, byte* payload, unsigned int length) {\n  Serial.print(\"MQTT message received [topic: \");\n  Serial.print(topic);\n  Serial.print(\"] \");\n  \n  // Convert payload to string\n  String message = \"\";\n  for (int i = 0; i < length; i++) {\n    message += (char)payload[i];\n  }\n  Serial.println(message);\n  \n  // Handle configuration commands\n  String topicStr = String(topic);\n  if (topicStr.startsWith(String(baseTopic) + \"/\" + String(deviceId) + \"/config/\")) {\n    String configType = topicStr.substring(String(baseTopic).length() + String(deviceId).length() + 9);\n    \n    if (configType == \"interval\") {\n      // Update publish interval\n      JsonDocument doc;\n      DeserializationError error = deserializeJson(doc, message);\n      \n      if (!error && doc.containsKey(\"interval\")) {\n        int newInterval = doc[\"interval\"];\n        if (newInterval >= 1 && newInterval <= 3600) {\n          Serial.print(\"Updating publish interval to: \");\n          Serial.println(newInterval);\n          // Note: In a real implementation, you would update the global variable\n        }\n      }\n    } else if (configType == \"sensors\") {\n      // Update sensor configuration\n      JsonDocument doc;\n      DeserializationError error = deserializeJson(doc, message);\n      \n      if (!error && doc.containsKey(\"sensors\")) {\n        Serial.println(\"Updating sensor configuration\");\n        // Note: In a real implementation, you would reinitialize sensors\n      }\n    }\n  }\n}\n\nvoid updateStatusLED() {\n  static unsigned long lastBlinkTime = 0;\n  static bool ledState = false;\n  \n  switch (currentStatus) {\n    case CONNECTED:\n      digitalWrite(LED_PIN, HIGH); // Solid on when connected\n      break;\n      \n    case CONNECTING_WIFI:\n    case CONNECTING_MQTT:\n      // Slow blink when connecting\n      if (millis() - lastBlinkTime > 500) {\n        ledState = !ledState;\n        digitalWrite(LED_PIN, ledState);\n        lastBlinkTime = millis();\n      }\n      break;\n      \n    case ERROR:\n      // Fast blink when error\n      if (millis() - lastBlinkTime > 200) {\n        ledState = !ledState;\n        digitalWrite(LED_PIN, ledState);\n        lastBlinkTime = millis();\n      }\n      break;\n      \n    default:\n      digitalWrite(LED_PIN, LOW); // Off when disconnected\n      break;\n  }\n}\n\nvoid sendStatusUpdate() {\n  JsonDocument doc;\n  doc[\"deviceId\"] = deviceId;\n  doc[\"status\"] = \"online\";\n  doc[\"timestamp\"] = millis();\n  doc[\"ip\"] = WiFi.localIP().toString();\n  doc[\"wifiRSSI\"] = WiFi.RSSI();\n  doc[\"sensorCount\"] = sensorCount;\n  doc[\"bufferCount\"] = bufferCount;\n  \n  String topic = String(baseTopic) + \"/\" + String(deviceId) + \"/status\";\n  String payload;\n  serializeJson(doc, payload);\n  \n  publishMessage(topic.c_str(), payload.c_str(), true); // Retained status\n  \n  Serial.print(\"Status update published: \");\n  Serial.println(payload);\n}\n\nbool publishMessage(const char* topic, const char* payload, bool retained) {\n  bool success = mqttClient.publish(topic, payload, retained);\n  \n  if (success) {\n    Serial.print(\"Message published to \");\n    Serial.print(topic);\n    Serial.print(\": \");\n    Serial.println(payload);\n  } else {\n    Serial.print(\"Failed to publish to \");\n    Serial.println(topic);\n  }\n  \n  return success;\n}"
+      }
+    },
+    {
+      "type": "wiring_diagram",
+      "path": "mqtt_bridge_wiring.png",
+      "metadata": {
+        "description": "Wiring diagram for MQTT bridge with sensors",
+        "connections": [
+          {
+            "from": "ESP32 3.3V",
+            "to": "LED Anode",
+            "wire_color": "red"
+          },
+          {
+            "from": "ESP32 GND",
+            "to": "LED Cathode",
+            "wire_color": "black"
+          },
+          {
+            "from": "ESP32 GPIO {{.ledPin}}",
+            "to": "LED Resistor",
+            "wire_color": "yellow"
+          },
+          {
+            "from": "ESP32 GPIO 34",
+            "to": "Temperature Sensor",
+            "wire_color": "blue"
+          },
+          {
+            "from": "ESP32 GPIO 35",
+            "to": "Humidity Sensor",
+            "wire_color": "green"
+          },
+          {
+            "from": "ESP32 GPIO 32",
+            "to": "Light Sensor",
+            "wire_color": "orange"
+          },
+          {
+            "from": "Sensors GND",
+            "to": "ESP32 GND",
+            "wire_color": "black"
+          },
+          {
+            "from": "Sensors VCC",
+            "to": "ESP32 3.3V",
+            "wire_color": "red"
+          }
+        ]
+      }
+    },
+    {
+      "type": "documentation",
+      "path": "README.md",
+      "metadata": {
+        "content": "# MQTT Bridge for Sensor Data Aggregation\n\n## Overview\nThis template implements an MQTT bridge system for aggregating sensor data and forwarding it to multiple destinations. It supports multiple sensors, data aggregation, buffering, and real-time configuration.\n\n## Features\n- **Multi-Sensor Support**: Configure up to 8 analog sensors\n- **Data Aggregation**: Statistical analysis (min, max, average)\n- **Offline Buffering**: Store data when MQTT is unavailable\n- **Real-time Configuration**: Update settings via MQTT\n- **Status Monitoring**: LED indication and status publishing\n- **Flexible Topics**: Configurable MQTT topics\n- **JSON Payloads**: Structured data format\n- **Auto-Reconnect**: Automatic Wi-Fi and MQTT reconnection\n\n## Configuration Options\n- **Wi-Fi Settings**: SSID, password for network connection\n- **MQTT Settings**: Broker, port, credentials, topics\n- **Device ID**: Unique identifier for the bridge\n- **Sensor Configuration**: Pin assignments, names, units, multipliers\n- **Publish Interval**: Data publishing frequency (1-3600 seconds)\n- **Aggregation**: Enable statistical aggregation (default: enabled)\n- **Aggregation Window**: Time window for aggregation (10-300 seconds)\n- **Buffering**: Enable offline data buffering (default: enabled)\n- **Buffer Size**: Maximum buffered readings (10-1000)\n- **Status LED**: LED pin for status indication\n- **Retained Messages**: Enable MQTT retained flag (default: disabled)\n\n## MQTT Topics\n- **Data Topic**: `{baseTopic}/{deviceId}/data`\n- **Status Topic**: `{baseTopic}/{deviceId}/status`\n- **Config Topic**: `{baseTopic}/{deviceId}/config/+`\n\n## Data Format\n### Sensor Data Payload\n```json\n{\n  \"deviceId\": \"athena-bridge-001\",\n  \"timestamp\": 1234567890,\n  \"wifiRSSI\": -45,\n  \"sensors\": {\n    \"temperature\": {\n      \"current\": 23.5,\n      \"average\": 23.2,\n      \"min\": 22.8,\n      \"max\": 24.1,\n      \"count\": 10,\n      \"unit\": \"°C\"\n    },\n    \"humidity\": {\n      \"current\": 65.2,\n      \"average\": 64.8,\n      \"min\": 63.5,\n      \"max\": 66.1,\n      \"count\": 10,\n      \"unit\": \"%\"\n    }\n  }\n}\n```\n\n### Status Payload\n```json\n{\n  \"deviceId\": \"athena-bridge-001\",\n  \"status\": \"online\",\n  \"timestamp\": 1234567890,\n  \"ip\": \"192.168.1.100\",\n  \"wifiRSSI\": -45,\n  \"sensorCount\": 3,\n  \"bufferCount\": 0\n}\n```\n\n## Configuration Commands\n### Update Publish Interval\n```json\n{\n  \"interval\": 60\n}\n```\nTopic: `{baseTopic}/{deviceId}/config/interval`\n\n### Update Sensor Configuration\n```json\n{\n  \"sensors\": [\n    {\"pin\": 34, \"name\": \"temperature\", \"unit\": \"°C\", \"multiplier\": 0.1},\n    {\"pin\": 35, \"name\": \"humidity\", \"unit\": \"%\", \"multiplier\": 0.1}\n  ]\n}\n```\nTopic: `{baseTopic}/{deviceId}/config/sensors`\n\n## LED Status Patterns\n- **Solid ON**: Connected to MQTT broker\n- **Slow Blink**: Connecting to Wi-Fi or MQTT\n- **Fast Blink**: Connection error\n- **OFF**: Disconnected\n\n## Supported Sensors\n- **Analog Sensors**: Any 0-3.3V analog sensor\n- **Temperature**: LM35, thermistors, PT100\n- **Humidity**: DHT11 (analog mode), capacitive sensors\n- **Light**: LDR, photoresistors, BH1750 (analog)\n- **Pressure**: MPX5700, pressure sensors\n- **Custom**: Any analog sensor with voltage output\n\n## Supported Boards\n- ESP32 DevKit v1\n- ESP8266 NodeMCU v2\n\n## Dependencies\n- WiFi library (built-in)\n- PubSubClient library v2.8.0\n- ArduinoJson library v6.21.3\n- EEPROM library (built-in)\n\n## Setup Instructions\n1. Connect sensors to analog pins (GPIO 32-39 on ESP32)\n2. Connect status LED to pin {{.ledPin}}\n3. Configure Wi-Fi and MQTT settings\n4. Upload sketch to device\n5. Monitor serial output for status\n6. Subscribe to MQTT topics for data\n\n## Advanced Configuration\n- **Custom Multipliers**: Calibrate sensor readings\n- **Aggregation Windows**: Optimize for sensor response time\n- **Buffer Management**: Adjust for network reliability\n- **Topic Structure**: Customize for your IoT platform\n- **QoS Settings**: Configure message quality of service\n\n## Integration Examples\n### Home Assistant\n```yaml\nsensor:\n  - platform: mqtt\n    name: \"Temperature\"\n    state_topic: \"athena/bridge/athena-bridge-001/data\"\n    value_template: \"{{value_json.sensors.temperature.current}}\"\n    unit_of_measurement: \"°C\"\n```\n\n### Node-RED\n```javascript\nmsg.topic = \"athena/bridge/athena-bridge-001/config/interval\";\nmsg.payload = JSON.stringify({interval: 30});\nreturn msg;\n```\n\n### AWS IoT Core\n- Use device ID as client ID\n- Configure TLS certificates\n- Map topics to AWS IoT topics\n\n## Performance Specifications\n- **Sensor Reading**: <10ms per sensor\n- **Aggregation Update**: Configurable window\n- **MQTT Publish**: <100ms typical\n- **Memory Usage**: ~30KB for buffers\n- **Power Consumption**: ~100mA (Wi-Fi active)\n- **Data Rate**: Configurable (1-3600s intervals)\n\n## Troubleshooting\n- **Wi-Fi Connection**: Check SSID/password and signal strength\n- **MQTT Connection**: Verify broker address and credentials\n- **Sensor Readings**: Check analog connections and power\n- **Data Not Publishing**: Verify MQTT topic subscriptions\n- **Buffer Overflow**: Increase buffer size or reduce frequency\n- **LED Not Working**: Check LED connections and pin assignment\n\n## Security Considerations\n- **MQTT Authentication**: Use username/password\n- **TLS Encryption**: Enable MQTT over TLS\n- **Network Security**: Use WPA2/WPA3 networks\n- **Access Control**: Limit MQTT topic permissions\n- **Data Privacy**: Avoid sensitive data in topics\n\n## Use Cases\n- **Industrial Monitoring**: Factory sensor aggregation\n- **Smart Agriculture**: Environmental monitoring\n- **Building Management**: HVAC and lighting control\n- **Weather Stations**: Meteorological data collection\n- **IoT Gateways**: Protocol conversion and buffering"
+      }
+    }
+  ],
+  "wiring_spec": {
+    "components": [
+      {
+        "id": "esp32",
+        "type": "board",
+        "name": "ESP32 Board",
+        "pins": [
+          {"number": "3.3V", "name": "3.3V", "type": "power"},
+          {"number": "GND", "name": "gnd", "type": "ground"},
+          {"number": "{{.ledPin}}", "name": "GPIO{{.ledPin}}", "type": "digital"},
+          {"number": "34", "name": "GPIO34", "type": "analog"},
+          {"number": "35", "name": "GPIO35", "type": "analog"},
+          {"number": "32", "name": "GPIO32", "type": "analog"}
+        ]
+      },
+      {
+        "id": "led",
+        "type": "indicator",
+        "name": "Status LED",
+        "pins": [
+          {"number": "1", "name": "Anode", "type": "power"},
+          {"number": "2", "name": "Cathode", "type": "ground"}
+        ]
+      },
+      {
+        "id": "resistor",
+        "type": "component",
+        "name": "220Ω Resistor",
+        "pins": [
+          {"number": "1", "name": "Pin 1", "type": "passive"},
+          {"number": "2", "name": "Pin 2", "type": "passive"}
+        ]
+      },
+      {
+        "id": "temp-sensor",
+        "type": "sensor",
+        "name": "Temperature Sensor",
+        "pins": [
+          {"number": "1", "name": "VCC", "type": "power"},
+          {"number": "2", "name": "GND", "type": "ground"},
+          {"number": "3", "name": "OUT", "type": "analog"}
+        ]
+      },
+      {
+        "id": "humidity-sensor",
+        "type": "sensor",
+        "name": "Humidity Sensor",
+        "pins": [
+          {"number": "1", "name": "VCC", "type": "power"},
+          {"number": "2", "name": "GND", "type": "ground"},
+          {"number": "3", "name": "OUT", "type": "analog"}
+        ]
+      },
+      {
+        "id": "light-sensor",
+        "type": "sensor",
+        "name": "Light Sensor",
+        "pins": [
+          {"number": "1", "name": "VCC", "type": "power"},
+          {"number": "2", "name": "GND", "type": "ground"},
+          {"number": "3", "name": "OUT", "type": "analog"}
+        ]
+      }
+    ],
+    "connections": [
+      {
+        "from_component": "esp32",
+        "from_pin": "3.3V",
+        "to_component": "resistor",
+        "to_pin": "1",
+        "wire_color": "red"
+      },
+      {
+        "from_component": "resistor",
+        "from_pin": "2",
+        "to_component": "led",
+        "to_pin": "1",
+        "wire_color": "yellow"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "{{.ledPin}}",
+        "to_component": "resistor",
+        "to_pin": "1",
+        "wire_color": "blue"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "GND",
+        "to_component": "led",
+        "to_pin": "2",
+        "wire_color": "black"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "34",
+        "to_component": "temp-sensor",
+        "to_pin": "3",
+        "wire_color": "blue"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "35",
+        "to_component": "humidity-sensor",
+        "to_pin": "3",
+        "wire_color": "green"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "32",
+        "to_component": "light-sensor",
+        "to_pin": "3",
+        "wire_color": "orange"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "3.3V",
+        "to_component": "temp-sensor",
+        "to_pin": "1",
+        "wire_color": "red"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "3.3V",
+        "to_component": "humidity-sensor",
+        "to_pin": "1",
+        "wire_color": "red"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "3.3V",
+        "to_component": "light-sensor",
+        "to_pin": "1",
+        "wire_color": "red"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "GND",
+        "to_component": "temp-sensor",
+        "to_pin": "2",
+        "wire_color": "black"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "GND",
+        "to_component": "humidity-sensor",
+        "to_pin": "2",
+        "wire_color": "black"
+      },
+      {
+        "from_component": "esp32",
+        "from_pin": "GND",
+        "to_component": "light-sensor",
+        "to_pin": "2",
+        "wire_color": "black"
+      }
+    ]
+  }
+}

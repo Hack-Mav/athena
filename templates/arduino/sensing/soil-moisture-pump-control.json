@@ -1,0 +1,274 @@
+{
+  "id": "soil-moisture-pump-control",
+  "name": "Soil Moisture Monitor with Pump Control",
+  "version": "1.0.0",
+  "category": "sensing",
+  "description": "Automated soil moisture monitoring system with pump control for plant watering",
+  "author": "ATHENA Team",
+  "boards_supported": ["arduino:avr:uno", "arduino:avr:nano", "arduino:avr:mega"],
+  "libraries": [
+    {
+      "name": "ArduinoJson",
+      "version": "6.21.3"
+    }
+  ],
+  "schema": {
+    "type": "object",
+    "properties": {
+      "moisturePin": {
+        "type": "integer",
+        "title": "Moisture Sensor Pin",
+        "description": "Analog pin connected to soil moisture sensor",
+        "minimum": 0,
+        "maximum": 5,
+        "default": 0
+      },
+      "pumpPin": {
+        "type": "integer",
+        "title": "Pump Control Pin",
+        "description": "Digital pin controlling water pump relay",
+        "minimum": 2,
+        "maximum": 13,
+        "default": 7
+      },
+      "ledPin": {
+        "type": "integer",
+        "title": "Status LED Pin",
+        "description": "LED pin for system status indication",
+        "minimum": 2,
+        "maximum": 13,
+        "default": 13
+      },
+      "dryThreshold": {
+        "type": "integer",
+        "title": "Dry Threshold",
+        "description": "Moisture level below which watering is triggered (0-100%)",
+        "minimum": 10,
+        "maximum": 80,
+        "default": 30
+      },
+      "wetThreshold": {
+        "type": "integer",
+        "title": "Wet Threshold",
+        "description": "Moisture level above which watering stops (0-100%)",
+        "minimum": 20,
+        "maximum": 90,
+        "default": 60
+      },
+      "pumpDuration": {
+        "type": "integer",
+        "title": "Pump Duration",
+        "description": "Maximum pump run time in seconds",
+        "minimum": 5,
+        "maximum": 300,
+        "default": 30
+      },
+      "checkInterval": {
+        "type": "integer",
+        "title": "Check Interval",
+        "description": "Time between moisture checks in minutes",
+        "minimum": 1,
+        "maximum": 1440,
+        "default": 30
+      },
+      "sensorCalibrationDry": {
+        "type": "integer",
+        "title": "Dry Calibration Value",
+        "description": "Analog reading when sensor is dry (0-1023)",
+        "minimum": 600,
+        "maximum": 1023,
+        "default": 850
+      },
+      "sensorCalibrationWet": {
+        "type": "integer",
+        "title": "Wet Calibration Value",
+        "description": "Analog reading when sensor is wet (0-1023)",
+        "minimum": 100,
+        "maximum": 400,
+        "default": 300
+      }
+    },
+    "required": ["moisturePin", "pumpPin", "dryThreshold", "wetThreshold"]
+  },
+  "parameters": {
+    "moisturePin": 0,
+    "pumpPin": 7,
+    "ledPin": 13,
+    "dryThreshold": 30,
+    "wetThreshold": 60,
+    "pumpDuration": 30,
+    "checkInterval": 30,
+    "sensorCalibrationDry": 850,
+    "sensorCalibrationWet": 300
+  },
+  "assets": [
+    {
+      "type": "code",
+      "path": "soil_moisture_pump_control.ino",
+      "metadata": {
+        "content": "#include <ArduinoJson.h>\n\n// Pin Configuration\n#define MOISTURE_SENSOR_PIN {{.moisturePin}}\n#define PUMP_RELAY_PIN {{.pumpPin}}\n#define STATUS_LED_PIN {{.ledPin}}\n\n// Threshold Configuration\n#define DRY_THRESHOLD {{.dryThreshold}} // Water when moisture < this %\n#define WET_THRESHOLD {{.wetThreshold}} // Stop watering when moisture > this %\n#define PUMP_DURATION {{.pumpDuration}} // Maximum pump runtime in seconds\n#define CHECK_INTERVAL {{.checkInterval}} // Check interval in minutes\n\n// Sensor Calibration\n#define SENSOR_DRY_VALUE {{.sensorCalibrationDry}} // Analog reading when dry\n#define SENSOR_WET_VALUE {{.sensorCalibrationWet}} // Analog reading when wet\n\n// System State\nenum SystemState {\n  IDLE,\n  WATERING,\n  WAITING\n};\n\nSystemState current_state = IDLE;\nunsigned long last_check_time = 0;\nunsigned long pump_start_time = 0;\nint current_moisture = 0;\nint moisture_history[10]; // Store last 10 readings for averaging\nint history_index = 0;\nbool pump_active = false;\n\n// Function prototypes\nint read_moisture();\nint get_average_moisture();\nvoid control_pump(bool turn_on);\nvoid update_status_led();\nvoid log_system_status();\n\nvoid setup() {\n  Serial.begin(115200);\n  Serial.println(\"Soil Moisture Monitor with Pump Control Starting...\");\n  \n  // Initialize pins\n  pinMode(MOISTURE_SENSOR_PIN, INPUT);\n  pinMode(PUMP_RELAY_PIN, OUTPUT);\n  pinMode(STATUS_LED_PIN, OUTPUT);\n  \n  // Initialize outputs\n  digitalWrite(PUMP_RELAY_PIN, LOW); // Pump OFF\n  digitalWrite(STATUS_LED_PIN, LOW); // LED OFF\n  \n  // Initialize moisture history\n  for (int i = 0; i < 10; i++) {\n    moisture_history[i] = 0;\n  }\n  \n  // Wait for sensor to stabilize\n  delay(2000);\n  \n  // Take initial reading\n  current_moisture = read_moisture();\n  for (int i = 0; i < 10; i++) {\n    moisture_history[i] = current_moisture;\n  }\n  \n  Serial.print(\"Configuration:\");\n  Serial.print(\" Dry Threshold: \");\n  Serial.print(DRY_THRESHOLD);\n  Serial.print(\"%, Wet Threshold: \");\n  Serial.print(WET_THRESHOLD);\n  Serial.print(\"%, Pump Duration: \");\n  Serial.print(PUMP_DURATION);\n  Serial.print(\"s, Check Interval: \");\n  Serial.print(CHECK_INTERVAL);\n  Serial.println(\"min\");\n  \n  Serial.print(\"Sensor Calibration - Dry: \");\n  Serial.print(SENSOR_DRY_VALUE);\n  Serial.print(\", Wet: \");\n  Serial.println(SENSOR_WET_VALUE);\n  \n  Serial.print(\"Initial moisture: \");\n  Serial.print(current_moisture);\n  Serial.println(\"%\");\n}\n\nvoid loop() {\n  unsigned long current_time = millis();\n  \n  // Check moisture at specified intervals\n  if (current_time - last_check_time >= (CHECK_INTERVAL * 60000UL)) {\n    last_check_time = current_time;\n    \n    // Read and average moisture\n    current_moisture = read_moisture();\n    moisture_history[history_index] = current_moisture;\n    history_index = (history_index + 1) % 10;\n    \n    int avg_moisture = get_average_moisture();\n    \n    Serial.print(\"Moisture check - Current: \");\n    Serial.print(current_moisture);\n    Serial.print(\"%, Average: \");\n    Serial.print(avg_moisture);\n    Serial.println(\"%\");\n    \n    // State machine logic\n    switch (current_state) {\n      case IDLE:\n        if (avg_moisture < DRY_THRESHOLD) {\n          Serial.println(\"Soil is dry - starting watering\");\n          current_state = WATERING;\n          control_pump(true);\n          pump_start_time = current_time;\n        }\n        break;\n        \n      case WATERING:\n        // Check if moisture is sufficient or max duration reached\n        if (avg_moisture >= WET_THRESHOLD || \n            (current_time - pump_start_time >= (PUMP_DURATION * 1000UL))) {\n          \n          if (avg_moisture >= WET_THRESHOLD) {\n            Serial.println(\"Soil is wet enough - stopping watering\");\n          } else {\n            Serial.println(\"Maximum pump duration reached - stopping watering\");\n          }\n          \n          control_pump(false);\n          current_state = WAITING;\n        }\n        break;\n        \n      case WAITING:\n        // Wait for next check cycle\n        current_state = IDLE;\n        break;\n    }\n    \n    log_system_status();\n  }\n  \n  // Update status LED\n  update_status_led();\n  \n  // Safety check: never let pump run more than max duration\n  if (pump_active && (current_time - pump_start_time >= (PUMP_DURATION * 1000UL))) {\n    Serial.println(\"SAFETY: Maximum pump duration exceeded - forcing pump OFF\");\n    control_pump(false);\n    current_state = WAITING;\n  }\n  \n  delay(1000); // Small delay to prevent overwhelming the system\n}\n\nint read_moisture() {\n  // Read analog value from moisture sensor\n  int raw_value = analogRead(MOISTURE_SENSOR_PIN);\n  \n  // Map raw value to percentage (inverted because dry = high value)\n  int percentage = map(raw_value, SENSOR_DRY_VALUE, SENSOR_WET_VALUE, 0, 100);\n  \n  // Constrain to 0-100 range\n  if (percentage < 0) percentage = 0;\n  if (percentage > 100) percentage = 100;\n  \n  return percentage;\n}\n\nint get_average_moisture() {\n  // Calculate average of last 10 readings\n  long sum = 0;\n  for (int i = 0; i < 10; i++) {\n    sum += moisture_history[i];\n  }\n  return sum / 10;\n}\n\nvoid control_pump(bool turn_on) {\n  if (turn_on && !pump_active) {\n    Serial.println(\"Pump ON\");\n    digitalWrite(PUMP_RELAY_PIN, HIGH);\n    pump_active = true;\n  } else if (!turn_on && pump_active) {\n    Serial.println(\"Pump OFF\");\n    digitalWrite(PUMP_RELAY_PIN, LOW);\n    pump_active = false;\n  }\n}\n\nvoid update_status_led() {\n  // LED patterns based on system state\n  static unsigned long led_update_time = 0;\n  static bool led_state = false;\n  \n  unsigned long current_time = millis();\n  \n  switch (current_state) {\n    case IDLE:\n      // Slow blink when idle\n      if (current_time - led_update_time >= 2000) {\n        led_state = !led_state;\n        digitalWrite(STATUS_LED_PIN, led_state);\n        led_update_time = current_time;\n      }\n      break;\n      \n    case WATERING:\n      // Fast blink when watering\n      if (current_time - led_update_time >= 500) {\n        led_state = !led_state;\n        digitalWrite(STATUS_LED_PIN, led_state);\n        led_update_time = current_time;\n      }\n      break;\n      \n    case WAITING:\n      // Solid LED when waiting\n      digitalWrite(STATUS_LED_PIN, HIGH);\n      break;\n  }\n}\n\nvoid log_system_status() {\n  // Create JSON status for potential MQTT/web integration\n  StaticJsonDocument<200> doc;\n  doc[\"timestamp\"] = millis();\n  doc[\"moisture\"] = current_moisture;\n  doc[\"average_moisture\"] = get_average_moisture();\n  doc[\"state\"] = (int)current_state;\n  doc[\"pump_active\"] = pump_active;\n  doc[\"dry_threshold\"] = DRY_THRESHOLD;\n  doc[\"wet_threshold\"] = WET_THRESHOLD;\n  \n  String status_json;\n  serializeJson(doc, status_json);\n  \n  // Output JSON to serial (could be sent to MQTT in future)\n  Serial.print(\"Status: \");\n  Serial.println(status_json);\n}"
+      }
+    },
+    {
+      "type": "wiring_diagram",
+      "path": "soil_moisture_wiring.png",
+      "metadata": {
+        "description": "Wiring diagram for soil moisture sensor and pump control",
+        "connections": [
+          {
+            "from": "Moisture Sensor VCC",
+            "to": "Arduino 5V",
+            "wire_color": "red"
+          },
+          {
+            "from": "Moisture Sensor GND",
+            "to": "Arduino GND",
+            "wire_color": "black"
+          },
+          {
+            "from": "Moisture Sensor AOUT",
+            "to": "Arduino Analog Pin {{.moisturePin}}",
+            "wire_color": "blue"
+          },
+          {
+            "from": "Relay VCC",
+            "to": "Arduino 5V",
+            "wire_color": "red"
+          },
+          {
+            "from": "Relay GND",
+            "to": "Arduino GND",
+            "wire_color": "black"
+          },
+          {
+            "from": "Relay IN",
+            "to": "Arduino Digital Pin {{.pumpPin}}",
+            "wire_color": "green"
+          },
+          {
+            "from": "LED Anode",
+            "to": "Arduino Digital Pin {{.ledPin}}",
+            "wire_color": "yellow"
+          },
+          {
+            "from": "LED Cathode",
+            "to": "Arduino GND",
+            "wire_color": "black"
+          }
+        ]
+      }
+    },
+    {
+      "type": "documentation",
+      "path": "README.md",
+      "metadata": {
+        "content": "# Soil Moisture Monitor with Pump Control\n\n## Overview\nThis template implements an automated soil moisture monitoring system with pump control for plant watering. It uses a soil moisture sensor to detect when plants need water and automatically activates a water pump.\n\n## Features\n- Soil moisture monitoring with analog sensor\n- Configurable dry and wet thresholds\n- Automatic pump control with safety limits\n- Status LED indication\n- Moisture averaging for stable readings\n- JSON status output for integration\n- Calibration support for different sensors\n\n## System Behavior\n- **IDLE**: Checks moisture periodically, slow LED blink\n- **WATERING**: Pump is ON, fast LED blink\n- **WAITING**: Post-watering waiting period, solid LED\n\n## Configuration Options\n- **Moisture Sensor Pin**: Analog pin for sensor (default: A0)\n- **Pump Control Pin**: Digital pin for pump relay (default: 7)\n- **Status LED Pin**: LED pin for status (default: 13)\n- **Dry Threshold**: Water when moisture < this % (default: 30%)\n- **Wet Threshold**: Stop when moisture > this % (default: 60%)\n- **Pump Duration**: Maximum pump runtime in seconds (default: 30s)\n- **Check Interval**: Time between checks in minutes (default: 30min)\n- **Sensor Calibration**: Dry/wet calibration values\n\n## Calibration\n1. **Dry Calibration**: Take reading when sensor is completely dry\n2. **Wet Calibration**: Take reading when sensor is submerged in water\n3. Update calibration values in parameters\n\n## Wiring\n- Soil Moisture Sensor VCC → Arduino 5V\n- Soil Moisture Sensor GND → Arduino GND\n- Soil Moisture Sensor AOUT → Arduino Analog Pin {{.moisturePin}}\n- Relay Module VCC → Arduino 5V\n- Relay Module GND → Arduino GND\n- Relay Module IN → Arduino Digital Pin {{.pumpPin}}\n- Relay COM → Water Pump +\n- Relay NO → Power Supply +\n- Water Pump - → Power Supply -\n- LED Anode → Arduino Digital Pin {{.ledPin}} (with 220Ω resistor)\n- LED Cathode → Arduino GND\n\n## Safety Features\n- Maximum pump duration limit\n- Moisture averaging prevents false triggers\n- State machine prevents rapid cycling\n- Hardware relay isolation for pump control\n\n## JSON Status Output\n```json\n{\n  \"timestamp\": 12345,\n  \"moisture\": 45,\n  \"average_moisture\": 42,\n  \"state\": 1,\n  \"pump_active\": true,\n  \"dry_threshold\": 30,\n  \"wet_threshold\": 60\n}\n```\n\n## Dependencies\n- ArduinoJson library v6.21.3\n\n## Usage Tips\n- Calibrate sensor for your specific soil type\n- Adjust thresholds based on plant requirements\n- Use appropriate relay for pump power requirements\n- Consider adding flow sensor for water usage monitoring\n- Can be extended with MQTT or web interface\n\n## Troubleshooting\n- **Erratic readings**: Check sensor connections and power\n- **Pump not working**: Verify relay wiring and power supply\n- **Overwatering**: Increase wet threshold or reduce pump duration\n- **Underwatering**: Decrease dry threshold or increase check frequency"
+      }
+    }
+  ],
+  "wiring_spec": {
+    "components": [
+      {
+        "id": "arduino",
+        "type": "board",
+        "name": "Arduino Board",
+        "pins": [
+          {"number": "5V", "name": "5V", "type": "power"},
+          {"number": "GND", "name": "GND", "type": "ground"},
+          {"number": "A{{.moisturePin}}", "name": "A{{.moisturePin}}", "type": "analog"},
+          {"number": "{{.pumpPin}}", "name": "D{{.pumpPin}}", "type": "digital"},
+          {"number": "{{.ledPin}}", "name": "D{{.ledPin}}", "type": "digital"}
+        ]
+      },
+      {
+        "id": "moisture-sensor",
+        "type": "sensor",
+        "name": "Soil Moisture Sensor",
+        "pins": [
+          {"number": "1", "name": "VCC", "type": "power"},
+          {"number": "2", "name": "AOUT", "type": "analog"},
+          {"number": "3", "name": "GND", "type": "ground"}
+        ]
+      },
+      {
+        "id": "relay",
+        "type": "actuator",
+        "name": "Pump Relay Module",
+        "pins": [
+          {"number": "1", "name": "VCC", "type": "power"},
+          {"number": "2", "name": "IN", "type": "digital"},
+          {"number": "3", "name": "GND", "type": "ground"},
+          {"number": "4", "name": "COM", "type": "power"},
+          {"number": "5", "name": "NO", "type": "power"}
+        ]
+      },
+      {
+        "id": "led",
+        "type": "indicator",
+        "name": "Status LED",
+        "pins": [
+          {"number": "1", "name": "Anode", "type": "digital"},
+          {"number": "2", "name": "Cathode", "type": "ground"}
+        ]
+      }
+    ],
+    "connections": [
+      {
+        "from_component": "arduino",
+        "from_pin": "5V",
+        "to_component": "moisture-sensor",
+        "to_pin": "1",
+        "wire_color": "red"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "GND",
+        "to_component": "moisture-sensor",
+        "to_pin": "3",
+        "wire_color": "black"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "A{{.moisturePin}}",
+        "to_component": "moisture-sensor",
+        "to_pin": "2",
+        "wire_color": "blue"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "5V",
+        "to_component": "relay",
+        "to_pin": "1",
+        "wire_color": "red"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "GND",
+        "to_component": "relay",
+        "to_pin": "3",
+        "wire_color": "black"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "{{.pumpPin}}",
+        "to_component": "relay",
+        "to_pin": "2",
+        "wire_color": "green"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "{{.ledPin}}",
+        "to_component": "led",
+        "to_pin": "1",
+        "wire_color": "yellow"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "GND",
+        "to_component": "led",
+        "to_pin": "2",
+        "wire_color": "black"
+      }
+    ]
+  }
+}

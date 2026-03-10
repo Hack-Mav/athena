@@ -1,0 +1,345 @@
+{
+  "id": "air-quality-sensor-led-logging",
+  "name": "Air Quality Sensor with LED Indicator and Logging",
+  "version": "1.0.0",
+  "category": "sensing",
+  "description": "Multi-gas air quality sensor with LED indicators and comprehensive data logging",
+  "author": "ATHENA Team",
+  "boards_supported": ["arduino:avr:mega", "esp32:esp32:devkitv1"],
+  "libraries": [
+    {
+      "name": "ArduinoJson",
+      "version": "6.21.3"
+    },
+    {
+      "name": "SoftwareSerial",
+      "version": "1.0"
+    }
+  ],
+  "schema": {
+    "type": "object",
+    "properties": {
+      "mq135Pin": {
+        "type": "integer",
+        "title": "MQ-135 Analog Pin",
+        "description": "Analog pin for MQ-135 air quality sensor",
+        "minimum": 0,
+        "maximum": 5,
+        "default": 0
+      },
+      "redLedPin": {
+        "type": "integer",
+        "title": "Red LED Pin",
+        "description": "LED pin for poor air quality indicator",
+        "minimum": 2,
+        "maximum": 13,
+        "default": 9
+      },
+      "yellowLedPin": {
+        "type": "integer",
+        "title": "Yellow LED Pin",
+        "description": "LED pin for moderate air quality indicator",
+        "minimum": 2,
+        "maximum": 13,
+        "default": 10
+      },
+      "greenLedPin": {
+        "type": "integer",
+        "title": "Green LED Pin",
+        "description": "LED pin for good air quality indicator",
+        "minimum": 2,
+        "maximum": 13,
+        "default": 11
+      },
+      "buzzerPin": {
+        "type": "integer",
+        "title": "Buzzer Pin",
+        "description": "Buzzer pin for alerts (0 to disable)",
+        "minimum": 0,
+        "maximum": 13,
+        "default": 12
+      },
+      "readingInterval": {
+        "type": "integer",
+        "title": "Reading Interval",
+        "description": "Time between readings in seconds",
+        "minimum": 1,
+        "maximum": 300,
+        "default": 10
+      },
+      "poorThreshold": {
+        "type": "integer",
+        "title": "Poor Air Quality Threshold",
+        "description": "AQI threshold for poor air quality (0-500)",
+        "minimum": 100,
+        "maximum": 300,
+        "default": 200
+      },
+      "moderateThreshold": {
+        "type": "integer",
+        "title": "Moderate Air Quality Threshold",
+        "description": "AQI threshold for moderate air quality (0-500)",
+        "minimum": 50,
+        "maximum": 200,
+        "default": 100
+      },
+      "sensorCalibrationClean": {
+        "type": "integer",
+        "title": "Clean Air Calibration",
+        "description": "Analog reading in clean air (0-1023)",
+        "minimum": 50,
+        "maximum": 200,
+        "default": 90
+      },
+      "sensorCalibrationPolluted": {
+        "type": "integer",
+        "title": "Polluted Air Calibration",
+        "description": "Analog reading in polluted air (0-1023)",
+        "minimum": 300,
+        "maximum": 800,
+        "default": 400
+      },
+      "enableLogging": {
+        "type": "boolean",
+        "title": "Enable Data Logging",
+        "description": "Enable detailed data logging to serial",
+        "default": true
+      },
+      "enableAlerts": {
+        "type": "boolean",
+        "title": "Enable Alerts",
+        "description": "Enable LED and buzzer alerts",
+        "default": true
+      }
+    },
+    "required": ["mq135Pin", "redLedPin", "yellowLedPin", "greenLedPin"]
+  },
+  "parameters": {
+    "mq135Pin": 0,
+    "redLedPin": 9,
+    "yellowLedPin": 10,
+    "greenLedPin": 11,
+    "buzzerPin": 12,
+    "readingInterval": 10,
+    "poorThreshold": 200,
+    "moderateThreshold": 100,
+    "sensorCalibrationClean": 90,
+    "sensorCalibrationPolluted": 400,
+    "enableLogging": true,
+    "enableAlerts": true
+  },
+  "assets": [
+    {
+      "type": "code",
+      "path": "air_quality_sensor_led_logging.ino",
+      "metadata": {
+        "content": "#include <ArduinoJson.h>\n\n// Pin Configuration\n#define MQ135_PIN {{.mq135Pin}}\n#define RED_LED_PIN {{.redLedPin}}\n#define YELLOW_LED_PIN {{.yellowLedPin}}\n#define GREEN_LED_PIN {{.greenLedPin}}\n#define BUZZER_PIN {{.buzzerPin}}\n\n// Threshold Configuration\n#define POOR_THRESHOLD {{.poorThreshold}} // AQI > this = Poor\n#define MODERATE_THRESHOLD {{.moderateThreshold}} // AQI > this = Moderate\n#define READING_INTERVAL {{.readingInterval}} // Seconds between readings\n\n// Sensor Calibration\n#define CLEAN_AIR_VALUE {{.sensorCalibrationClean}} // Analog reading in clean air\n#define POLLUTED_AIR_VALUE {{.sensorCalibrationPolluted}} // Analog reading in polluted air\n\n// Configuration\n#define ENABLE_LOGGING {{.enableLogging}}\n#define ENABLE_ALERTS {{.enableAlerts}}\n\n// Air Quality Categories\nenum AirQuality {\n  GOOD,\n  MODERATE,\n  POOR,\n  VERY_POOR\n};\n\n// Global variables\nAirQuality current_quality = GOOD;\nunsigned long last_reading_time = 0;\nint current_aqi = 0;\nint raw_sensor_value = 0;\nfloat temperature = 25.0; // Assume room temperature for simplicity\nfloat humidity = 50.0; // Assume 50% humidity\n\n// Statistics\nint aqi_history[24]; // Store last 24 readings (4 hours at 10min intervals)\nint history_index = 0;\nint aqi_sum = 0;\nint aqi_max = 0;\nint aqi_min = 500;\nunsigned long alert_start_time = 0;\nbool continuous_alert = false;\n\n// Function prototypes\nint read_mq135();\nint calculate_aqi(int raw_value);\nAirQuality get_air_quality_category(int aqi);\nvoid update_leds(AirQuality quality);\nvoid handle_alerts(AirQuality quality);\nvoid log_data();\nvoid update_statistics();\nvoid beep_alert(int duration_ms);\n\nvoid setup() {\n  Serial.begin(115200);\n  Serial.println(\"Air Quality Sensor with LED Indicator and Logging Starting...\");\n  \n  // Initialize pins\n  pinMode(MQ135_PIN, INPUT);\n  pinMode(RED_LED_PIN, OUTPUT);\n  pinMode(YELLOW_LED_PIN, OUTPUT);\n  pinMode(GREEN_LED_PIN, OUTPUT);\n  \n  if (BUZZER_PIN > 0) {\n    pinMode(BUZZER_PIN, OUTPUT);\n  }\n  \n  // Initialize all LEDs OFF\n  digitalWrite(RED_LED_PIN, LOW);\n  digitalWrite(YELLOW_LED_PIN, LOW);\n  digitalWrite(GREEN_LED_PIN, LOW);\n  \n  if (BUZZER_PIN > 0) {\n    digitalWrite(BUZZER_PIN, LOW);\n  }\n  \n  // Initialize AQI history\n  for (int i = 0; i < 24; i++) {\n    aqi_history[i] = 0;\n  }\n  \n  // Wait for sensor to warm up (MQ-135 needs warm-up time)\n  Serial.println(\"Warming up sensor...\");\n  for (int i = 0; i < 60; i++) { // 60 seconds warm-up\n    delay(1000);\n    Serial.print(\".\");\n  }\n  Serial.println(\"\\nSensor ready!\");\n  \n  // Take initial reading\n  current_aqi = calculate_aqi(read_mq135());\n  aqi_history[0] = current_aqi;\n  current_quality = get_air_quality_category(current_aqi);\n  update_leds(current_quality);\n  \n  // Print configuration\n  Serial.print(\"Configuration:\");\n  Serial.print(\" Poor Threshold: \");\n  Serial.print(POOR_THRESHOLD);\n  Serial.print(\", Moderate Threshold: \");\n  Serial.print(MODERATE_THRESHOLD);\n  Serial.print(\", Reading Interval: \");\n  Serial.print(READING_INTERVAL);\n  Serial.println(\"s\");\n  \n  Serial.print(\"Calibration - Clean: \");\n  Serial.print(CLEAN_AIR_VALUE);\n  Serial.print(\", Polluted: \");\n  Serial.println(POLLUTED_AIR_VALUE);\n  \n  Serial.print(\"Initial AQI: \");\n  Serial.print(current_aqi);\n  Serial.print(\", Quality: \");\n  Serial.println(get_quality_string(current_quality));\n}\n\nvoid loop() {\n  unsigned long current_time = millis();\n  \n  // Take reading at specified interval\n  if (current_time - last_reading_time >= (READING_INTERVAL * 1000UL)) {\n    last_reading_time = current_time;\n    \n    // Read sensor\n    raw_sensor_value = read_mq135();\n    current_aqi = calculate_aqi(raw_sensor_value);\n    current_quality = get_air_quality_category(current_aqi);\n    \n    // Update history and statistics\n    aqi_history[history_index] = current_aqi;\n    history_index = (history_index + 1) % 24;\n    update_statistics();\n    \n    // Update indicators\n    if (ENABLE_ALERTS) {\n      update_leds(current_quality);\n      handle_alerts(current_quality);\n    }\n    \n    // Log data\n    if (ENABLE_LOGGING) {\n      log_data();\n    }\n  }\n  \n  delay(100); // Small delay\n}\n\nint read_mq135() {\n  // Take multiple readings and average for stability\n  long sum = 0;\n  int readings = 10;\n  \n  for (int i = 0; i < readings; i++) {\n    sum += analogRead(MQ135_PIN);\n    delay(10);\n  }\n  \n  return sum / readings;\n}\n\nint calculate_aqi(int raw_value) {\n  // Map raw sensor value to AQI (0-500 scale)\n  // This is a simplified calculation - real AQI calculation is more complex\n  int aqi = map(raw_value, CLEAN_AIR_VALUE, POLLUTED_AIR_VALUE, 0, 500);\n  \n  // Constrain to valid range\n  if (aqi < 0) aqi = 0;\n  if (aqi > 500) aqi = 500;\n  \n  return aqi;\n}\n\nAirQuality get_air_quality_category(int aqi) {\n  if (aqi >= POOR_THRESHOLD) {\n    return POOR;\n  } else if (aqi >= MODERATE_THRESHOLD) {\n    return MODERATE;\n  } else {\n    return GOOD;\n  }\n}\n\nconst char* get_quality_string(AirQuality quality) {\n  switch (quality) {\n    case GOOD: return \"Good\";\n    case MODERATE: return \"Moderate\";\n    case POOR: return \"Poor\";\n    case VERY_POOR: return \"Very Poor\";\n    default: return \"Unknown\";\n  }\n}\n\nvoid update_leds(AirQuality quality) {\n  // Turn all LEDs off first\n  digitalWrite(RED_LED_PIN, LOW);\n  digitalWrite(YELLOW_LED_PIN, LOW);\n  digitalWrite(GREEN_LED_PIN, LOW);\n  \n  // Turn on appropriate LED\n  switch (quality) {\n    case GOOD:\n      digitalWrite(GREEN_LED_PIN, HIGH);\n      break;\n    case MODERATE:\n      digitalWrite(YELLOW_LED_PIN, HIGH);\n      break;\n    case POOR:\n    case VERY_POOR:\n      digitalWrite(RED_LED_PIN, HIGH);\n      break;\n  }\n}\n\nvoid handle_alerts(AirQuality quality) {\n  static unsigned long last_buzz_time = 0;\n  unsigned long current_time = millis();\n  \n  if (quality == POOR || quality == VERY_POOR) {\n    if (!continuous_alert) {\n      // Start continuous alert\n      continuous_alert = true;\n      alert_start_time = current_time;\n      \n      if (BUZZER_PIN > 0) {\n        beep_alert(500); // Initial alert\n      }\n    } else {\n      // Periodic buzzing during continuous alert\n      if (BUZZER_PIN > 0 && (current_time - last_buzz_time >= 5000)) {\n        beep_alert(200);\n        last_buzz_time = current_time;\n      }\n    }\n  } else {\n    // Reset alert when air quality improves\n    if (continuous_alert) {\n      continuous_alert = false;\n      if (BUZZER_PIN > 0) {\n        digitalWrite(BUZZER_PIN, LOW);\n      }\n    }\n  }\n}\n\nvoid log_data() {\n  // Create detailed JSON log entry\n  StaticJsonDocument<300> doc;\n  doc[\"timestamp\"] = millis();\n  doc[\"aqi\"] = current_aqi;\n  doc[\"quality\"] = get_quality_string(current_quality);\n  doc[\"raw_sensor\"] = raw_sensor_value;\n  doc[\"temperature\"] = temperature;\n  doc[\"humidity\"] = humidity;\n  doc[\"aqi_min\"] = aqi_min;\n  doc[\"aqi_max\"] = aqi_max;\n  doc[\"aqi_avg\"] = (history_index > 0) ? (aqi_sum / min(history_index, 24)) : current_aqi;\n  doc[\"alert_active\"] = continuous_alert;\n  \n  // Serialize and output\n  String json_string;\n  serializeJson(doc, json_string);\n  Serial.println(json_string);\n  \n  // Also output human-readable summary\n  Serial.print(\"AQI: \");\n  Serial.print(current_aqi);\n  Serial.print(\" (\");\n  Serial.print(get_quality_string(current_quality));\n  Serial.print(\") - Raw: \");\n  Serial.print(raw_sensor_value);\n  Serial.print(\" - Min: \");\n  Serial.print(aqi_min);\n  Serial.print(\", Max: \");\n  Serial.print(aqi_max);\n  Serial.print(\", Avg: \");\n  Serial.print((history_index > 0) ? (aqi_sum / min(history_index, 24)) : current_aqi);\n  if (continuous_alert) {\n    Serial.print(\" [ALERT]\");\n  }\n  Serial.println();\n}\n\nvoid update_statistics() {\n  // Calculate min, max, and sum from history\n  aqi_sum = 0;\n  aqi_max = 0;\n  aqi_min = 500;\n  \n  int count = min(history_index, 24);\n  if (count == 0) return;\n  \n  for (int i = 0; i < count; i++) {\n    int value = aqi_history[i];\n    if (value > 0) { // Ignore uninitialized values\n      aqi_sum += value;\n      if (value > aqi_max) aqi_max = value;\n      if (value < aqi_min) aqi_min = value;\n    }\n  }\n}\n\nvoid beep_alert(int duration_ms) {\n  if (BUZZER_PIN > 0) {\n    digitalWrite(BUZZER_PIN, HIGH);\n    delay(duration_ms);\n    digitalWrite(BUZZER_PIN, LOW);\n  }\n}"
+      }
+    },
+    {
+      "type": "wiring_diagram",
+      "path": "air_quality_wiring.png",
+      "metadata": {
+        "description": "Wiring diagram for MQ-135 air quality sensor and LED indicators",
+        "connections": [
+          {
+            "from": "MQ-135 VCC",
+            "to": "Arduino 5V",
+            "wire_color": "red"
+          },
+          {
+            "from": "MQ-135 GND",
+            "to": "Arduino GND",
+            "wire_color": "black"
+          },
+          {
+            "from": "MQ-135 AOUT",
+            "to": "Arduino Analog Pin {{.mq135Pin}}",
+            "wire_color": "blue"
+          },
+          {
+            "from": "Red LED Anode",
+            "to": "Arduino Digital Pin {{.redLedPin}}",
+            "wire_color": "red"
+          },
+          {
+            "from": "Yellow LED Anode",
+            "to": "Arduino Digital Pin {{.yellowLedPin}}",
+            "wire_color": "yellow"
+          },
+          {
+            "from": "Green LED Anode",
+            "to": "Arduino Digital Pin {{.greenLedPin}}",
+            "wire_color": "green"
+          },
+          {
+            "from": "LED Cathodes",
+            "to": "Arduino GND",
+            "wire_color": "black"
+          },
+          {
+            "from": "Buzzer +",
+            "to": "Arduino Digital Pin {{.buzzerPin}}",
+            "wire_color": "orange"
+          },
+          {
+            "from": "Buzzer -",
+            "to": "Arduino GND",
+            "wire_color": "black"
+          }
+        ]
+      }
+    },
+    {
+      "type": "documentation",
+      "path": "README.md",
+      "metadata": {
+        "content": "# Air Quality Sensor with LED Indicator and Logging\n\n## Overview\nThis template implements a comprehensive air quality monitoring system using the MQ-135 sensor with multi-color LED indicators and detailed data logging capabilities.\n\n## Features\n- MQ-135 multi-gas air quality sensing\n- Real-time AQI (Air Quality Index) calculation\n- Three-color LED indicators (Green=Good, Yellow=Moderate, Red=Poor)\n- Optional buzzer alerts for poor air quality\n- Comprehensive data logging with statistics\n- Configurable thresholds and calibration\n- 24-hour historical data tracking\n- JSON output for integration\n\n## Air Quality Categories\n- **Good** (0-99 AQI): Green LED, normal operation\n- **Moderate** (100-199 AQI): Yellow LED, caution\n- **Poor** (200-500 AQI): Red LED, alerts active\n\n## LED Indicators\n- **Green**: Good air quality (AQI < 100)\n- **Yellow**: Moderate air quality (AQI 100-199)\n- **Red**: Poor air quality (AQI >= 200)\n- **Buzzer**: Periodic alerts during poor air quality\n\n## Configuration Options\n- **MQ-135 Pin**: Analog pin for sensor (default: A0)\n- **LED Pins**: Digital pins for indicators (default: 9,10,11)\n- **Buzzer Pin**: Alert buzzer (0=disabled, default: 12)\n- **Reading Interval**: Time between readings in seconds (default: 10)\n- **Thresholds**: AQI thresholds for alerts (default: 100, 200)\n- **Calibration**: Sensor calibration values\n- **Logging**: Enable/disable detailed logging\n- **Alerts**: Enable/disable LED/buzzer alerts\n\n## Calibration\n1. **Clean Air**: Take reading in fresh outdoor air\n2. **Polluted Air**: Take reading near known pollution source\n3. Update calibration values accordingly\n\n## Wiring\n- MQ-135 VCC → Arduino 5V\n- MQ-135 GND → Arduino GND\n- MQ-135 AOUT → Arduino Analog Pin {{.mq135Pin}}\n- Red LED Anode → Arduino Digital Pin {{.redLedPin}} (with 220Ω resistor)\n- Yellow LED Anode → Arduino Digital Pin {{.yellowLedPin}} (with 220Ω resistor)\n- Green LED Anode → Arduino Digital Pin {{.greenLedPin}} (with 220Ω resistor)\n- All LED Cathodes → Arduino GND\n- Buzzer + → Arduino Digital Pin {{.buzzerPin}} (if enabled)\n- Buzzer - → Arduino GND\n\n## Data Logging\nThe system outputs comprehensive JSON data:\n```json\n{\n  \"timestamp\": 12345,\n  \"aqi\": 150,\n  \"quality\": \"Moderate\",\n  \"raw_sensor\": 250,\n  \"temperature\": 25.0,\n  \"humidity\": 50.0,\n  \"aqi_min\": 45,\n  \"aqi_max\": 280,\n  \"aqi_avg\": 125,\n  \"alert_active\": false\n}\n```\n\n## Statistics\n- Last 24 readings (4 hours at 10min intervals)\n- Minimum, maximum, and average AQI\n- Trend analysis capability\n- Alert duration tracking\n\n## Dependencies\n- ArduinoJson library v6.21.3\n- SoftwareSerial (built-in)\n\n## Usage Applications\n- Indoor air quality monitoring\n- Pollution detection\n- HVAC system control\n- Smart home automation\n- Environmental monitoring\n- Industrial safety\n\n## Integration Options\n- MQTT publishing for IoT platforms\n- Web dashboard display\n- Mobile app notifications\n- Data analysis services\n- Cloud storage\n\n## Troubleshooting\n- **Inaccurate readings**: Calibrate sensor for local conditions\n- **LED not working**: Check connections and resistors\n- **No alerts**: Verify buzzer pin configuration\n- **Erratic values**: Ensure stable power supply\n- **Sensor warm-up**: Allow 60 seconds for sensor stabilization\n\n## Advanced Features\n- Temperature and humidity compensation (future)\n- Multiple gas detection (future)\n- Wireless transmission (future)\n- Battery power optimization (future)\n- Machine learning predictions (future)"
+      }
+    }
+  ],
+  "wiring_spec": {
+    "components": [
+      {
+        "id": "arduino",
+        "type": "board",
+        "name": "Arduino Board",
+        "pins": [
+          {"number": "5V", "name": "5V", "type": "power"},
+          {"number": "GND", "name": "GND", "type": "ground"},
+          {"number": "A{{.mq135Pin}}", "name": "A{{.mq135Pin}}", "type": "analog"},
+          {"number": "{{.redLedPin}}", "name": "D{{.redLedPin}}", "type": "digital"},
+          {"number": "{{.yellowLedPin}}", "name": "D{{.yellowLedPin}}", "type": "digital"},
+          {"number": "{{.greenLedPin}}", "name": "D{{.greenLedPin}}", "type": "digital"},
+          {"number": "{{.buzzerPin}}", "name": "D{{.buzzerPin}}", "type": "digital"}
+        ]
+      },
+      {
+        "id": "mq135",
+        "type": "sensor",
+        "name": "MQ-135 Air Quality Sensor",
+        "pins": [
+          {"number": "1", "name": "VCC", "type": "power"},
+          {"number": "2", "name": "AOUT", "type": "analog"},
+          {"number": "3", "name": "DOUT", "type": "digital"},
+          {"number": "4", "name": "GND", "type": "ground"}
+        ]
+      },
+      {
+        "id": "red-led",
+        "type": "indicator",
+        "name": "Red LED",
+        "pins": [
+          {"number": "1", "name": "Anode", "type": "digital"},
+          {"number": "2", "name": "Cathode", "type": "ground"}
+        ]
+      },
+      {
+        "id": "yellow-led",
+        "type": "indicator",
+        "name": "Yellow LED",
+        "pins": [
+          {"number": "1", "name": "Anode", "type": "digital"},
+          {"number": "2", "name": "Cathode", "type": "ground"}
+        ]
+      },
+      {
+        "id": "green-led",
+        "type": "indicator",
+        "name": "Green LED",
+        "pins": [
+          {"number": "1", "name": "Anode", "type": "digital"},
+          {"number": "2", "name": "Cathode", "type": "ground"}
+        ]
+      },
+      {
+        "id": "buzzer",
+        "type": "indicator",
+        "name": "Alert Buzzer",
+        "pins": [
+          {"number": "1", "name": "+", "type": "digital"},
+          {"number": "2", "name": "-", "type": "ground"}
+        ]
+      }
+    ],
+    "connections": [
+      {
+        "from_component": "arduino",
+        "from_pin": "5V",
+        "to_component": "mq135",
+        "to_pin": "1",
+        "wire_color": "red"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "GND",
+        "to_component": "mq135",
+        "to_pin": "4",
+        "wire_color": "black"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "A{{.mq135Pin}}",
+        "to_component": "mq135",
+        "to_pin": "2",
+        "wire_color": "blue"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "{{.redLedPin}}",
+        "to_component": "red-led",
+        "to_pin": "1",
+        "wire_color": "red"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "{{.yellowLedPin}}",
+        "to_component": "yellow-led",
+        "to_pin": "1",
+        "wire_color": "yellow"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "{{.greenLedPin}}",
+        "to_component": "green-led",
+        "to_pin": "1",
+        "wire_color": "green"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "GND",
+        "to_component": "red-led",
+        "to_pin": "2",
+        "wire_color": "black"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "GND",
+        "to_component": "yellow-led",
+        "to_pin": "2",
+        "wire_color": "black"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "GND",
+        "to_component": "green-led",
+        "to_pin": "2",
+        "wire_color": "black"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "{{.buzzerPin}}",
+        "to_component": "buzzer",
+        "to_pin": "1",
+        "wire_color": "orange"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "GND",
+        "to_component": "buzzer",
+        "to_pin": "2",
+        "wire_color": "black"
+      }
+    ]
+  }
+}

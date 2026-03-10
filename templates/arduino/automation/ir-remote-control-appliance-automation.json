@@ -1,0 +1,389 @@
+{
+  "id": "ir-remote-control-appliance-automation",
+  "name": "IR Remote Control for Appliance Automation",
+  "version": "1.0.0",
+  "category": "automation",
+  "description": "Infrared remote control system for appliance automation with learning capabilities",
+  "author": "ATHENA Team",
+  "boards_supported": ["arduino:avr:uno", "arduino:avr:nano", "arduino:avr:mega"],
+  "libraries": [
+    {
+      "name": "IRremote",
+      "version": "3.3.0"
+    },
+    {
+      "name": "ArduinoJson",
+      "version": "6.21.3"
+    },
+    {
+      "name": "EEPROM",
+      "version": "2.0.0"
+    }
+  ],
+  "schema": {
+    "type": "object",
+    "properties": {
+      "irReceiverPin": {
+        "type": "integer",
+        "title": "IR Receiver Pin",
+        "description": "Digital pin connected to IR receiver",
+        "minimum": 2,
+        "maximum": 12,
+        "default": 11
+      },
+      "relay1Pin": {
+        "type": "integer",
+        "title": "Relay 1 Pin",
+        "description": "Digital pin for appliance 1 relay",
+        "minimum": 2,
+        "maximum": 13,
+        "default": 2
+      },
+      "relay2Pin": {
+        "type": "integer",
+        "title": "Relay 2 Pin",
+        "description": "digital pin for appliance 2 relay",
+        "minimum": 2,
+        "maximum": 13,
+        "default": 3
+      },
+      "relay3Pin": {
+        "type": "integer",
+        "title": "Relay 3 Pin",
+        "description": "digital pin for appliance 3 relay",
+        "minimum": 2,
+        "maximum": 13,
+        "default": 4
+      },
+      "relay4Pin": {
+        "type": "integer",
+        "title": "Relay 4 Pin",
+        "description": "digital pin for appliance 4 relay",
+        "minimum": 2,
+        "maximum": 13,
+        "default": 5
+      },
+      "ledPin": {
+        "type": "integer",
+        "title": "Status LED Pin",
+        "description": "LED pin for status indication",
+        "minimum": 2,
+        "maximum": 13,
+        "default": 13
+      },
+      "buzzerPin": {
+        "type": "integer",
+        "title": "Buzzer Pin",
+        "description": "Buzzer pin for audio feedback (0=disabled)",
+        "minimum": 0,
+        "maximum": 13,
+        "default": 0
+      },
+      "enableLearning": {
+        "type": "boolean",
+        "title": "Enable IR Learning",
+        "description": "Enable learning mode for new remote controls",
+        "default": true
+      },
+      "autoOffDelay": {
+        "type": "integer",
+        "title": "Auto-Off Delay",
+        "description": "Auto-off delay in minutes (0=disabled)",
+        "minimum": 0,
+        "maximum": 240,
+        "default": 0
+      },
+      "deviceName": {
+        "type": "string",
+        "title": "Device Name",
+        "description": "Name for this IR controller",
+        "default": "IR Remote Controller"
+      },
+      "remoteNames": {
+        "type": "array",
+        "title": "Remote Names",
+        "description": "Names for learned remotes",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {"type": "integer"},
+            "name": {"type": "string"}
+          }
+        },
+        "default": [
+          {"id": 1, "name": "TV Remote"},
+          {"id": 2, "name": "AC Remote"}
+        ]
+      }
+    },
+    "required": ["irReceiverPin", "relay1Pin", "relay2Pin", "relay3Pin", "relay4Pin"]
+  },
+  "parameters": {
+    "irReceiverPin": 11,
+    "relay1Pin": 2,
+    "relay2Pin": 3,
+    "relay3Pin": 4,
+    "relay4Pin": 5,
+    "ledPin": 13,
+    "buzzerPin": 0,
+    "enableLearning": true,
+    "autoOffDelay": 0,
+    "deviceName": "IR Remote Controller",
+    "remoteNames": [
+      {"id": 1, "name": "TV Remote"},
+      {"id": 2, "name": "AC Remote"}
+    ]
+  },
+  "assets": [
+    {
+      "type": "code",
+      "path": "ir_remote_control_appliance_automation.ino",
+      "metadata": {
+        "content": "#include <IRremote.h>\n#include <ArduinoJson.h>\n#include <EEPROM.h>\n\n// IR Configuration\n#define IR_RECEIVER_PIN {{.irReceiverPin}}\n#define ENABLE_LEARNING {{.enableLearning}}\n#define AUTO_OFF_DELAY {{.autoOffDelay}} // minutes, 0 = disabled\n\n// Relay Configuration\nconst int relayPins[4] = {{.relay1Pin}, {{.relay2Pin}}, {{.relay3Pin}}, {{.relay4Pin}};\n\n// Status Configuration\n#define STATUS_LED_PIN {{.ledPin}}\n#define BUZZER_PIN {{.buzzerPin}}\nconst char* deviceName = \"{{.deviceName}}\";\n\n// EEPROM Configuration\n#define EEPROM_SIZE 512\n#define REMOTE_COUNT_ADDR 0\n#define COMMAND_COUNT_BASE_ADDR 100\n#define REMOTE_NAME_BASE_ADDR 200\n#define COMMAND_DATA_BASE_ADDR 300\n\n// Maximum configurations\n#define MAX_REMOTES 10\n#define MAX_COMMANDS_PER_REMOTE 20\n\n// Global variables\nIRrecv irrecv(IR_RECEIVER_PIN);\ndecode_results_t results;\n\n// Remote storage\nstruct RemoteInfo {\n  uint32_t hash;\n  char name[32];\n  int commandCount;\n  uint32_t commandHashes[MAX_COMMANDS_PER_REMOTE];\n};\n\nRemoteInfo remotes[MAX_REMOTES];\nint remoteCount = 0;\n\n// Command storage\nstruct CommandInfo {\n  uint32_t hash;\n  uint8_t relayMask; // Bitmask for which relays to control\n  bool toggle; // true=toggle, false=set state\n  uint32_t autoOffDelay; // Auto-off delay in minutes (0=disabled)\n};\n\nCommandInfo commands[MAX_REMOTES * MAX_COMMANDS_PER_REMOTE];\n\n// System state\nbool learningMode = false;\nunsigned long lastCommandTime = 0;\nunsigned long autoOffTimers[4] = {0, 0, 0, 0};\nbool relayStates[4] = {false, false, false, false};\nbool systemArmed = true;\n\n// Function prototypes\nvoid setupIR();\nvoid loadConfiguration();\nvoid saveConfiguration();\nvoid processIRCommand(uint32_t hash);\nvoid executeCommand(CommandInfo command);\nvoid updateRelays();\nvoid updateStatusLED();\nvoid beep(int duration);\nvoid startLearningMode();\nvoid stopLearningMode();\nuint32_t calculateHash(decode_results_t *results);\nString getRemoteName(uint32_t hash);\nvoid printStatus();\nvoid handleAutoOff();\n\nvoid setup() {\n  Serial.begin(115200);\n  Serial.println(\"IR Remote Control for Appliance Automation Starting...\");\n  \n  // Initialize pins\n  pinMode(STATUS_LED_PIN, OUTPUT);\n  if (BUZZER_PIN > 0) {\n    pinMode(BUZZER_PIN, OUTPUT);\n  }\n  \n  for (int i = 0; i < 4; i++) {\n    pinMode(relayPins[i], OUTPUT);\n    digitalWrite(relayPins[i], HIGH); // Relays are active LOW\n  }\n  \n  digitalWrite(STATUS_LED_PIN, LOW);\n  if (BUZZER_PIN > 0) {\n    digitalWrite(BUZZER_PIN, LOW);\n  }\n  \n  // Initialize IR receiver\n  setupIR();\n  \n  // Load configuration from EEPROM\n  loadConfiguration();\n  \n  Serial.print(\"Configuration loaded - \");\n  Serial.print(remoteCount);\n  Serial.println(\" remotes, \");\n  int totalCommands = 0;\n  for (int i = 0; i < remoteCount; i++) {\n    totalCommands += remotes[i].commandCount;\n  }\n  Serial.print(totalCommands);\n  Serial.println(\" commands\");\n  \n  // Initial status\n  updateStatusLED();\n  printStatus();\n  \n  Serial.println(\"Setup completed!\");\n  Serial.println(\"Commands:\");\n  Serial.println(\"  - Press button to execute command\");\n  Serial.println(\"  - Hold button 3 seconds to enter learning mode\");\n  Serial.println(\"  - Send 'HELP' for command list\");\n}\n\nvoid setupIR() {\n  irrecv.enableIRIn();\n  irrecv.blink13(true); // Enable LED feedback\n  Serial.println(\"IR receiver initialized\");\n}\n\nvoid loadConfiguration() {\n  EEPROM.begin(EEPROM_SIZE);\n  \n  // Load remote count\n  remoteCount = EEPROM.read(REMOTE_COUNT_ADDR);\n  if (remoteCount > MAX_REMOTES) {\n    remoteCount = MAX_REMOTES;\n  }\n  \n  // Load remote information\n  for (int i = 0; i < remoteCount; i++) {\n    EEPROM.get(REMOTE_NAME_BASE_ADDR + (i * 32), remotes[i].name, 32);\n    \n    // Read remote hash\n    for (int j = 0; j < 4; j++) {\n      ((byte*)&remotes[i].hash)[j] = EEPROM.read(REMOTE_NAME_BASE_ADDR + (i * 32) + 32 + (j * 4));\n    }\n    \n    // Load command count\n    remotes[i].commandCount = EEPROM.read(COMMAND_COUNT_BASE_ADDR + i);\n    if (remotes[i].commandCount > MAX_COMMANDS_PER_REMOTE) {\n      remotes[i].commandCount = MAX_COMMANDS_PER_REMOTE;\n    }\n    \n    // Load command information\n    for (int j = 0; j < remotes[i].commandCount; j++) {\n      CommandInfo cmd;\n      \n      // Read command hash\n      for (int k = 0; k < 4; k++) {\n        ((byte*)&cmd.hash)[k] = EEPROM.read(COMMAND_DATA_BASE_ADDR + (i * MAX_COMMANDS_PER_REMOTE * 12) + (j * 12) + (k * 4));\n      }\n      \n      // Read relay mask\n      cmd.relayMask = EEPROM.read(COMMAND_DATA_BASE_ADDR + (i * MAX_COMMANDS_PER_REMOTE * 12) + (j * 12) + 8);\n      \n      // Read toggle flag\n      cmd.toggle = EEPROM.read(COMMAND_DATA_BASE_ADDR + (i * MAX_COMMANDS_PER_REMOTE * 12) + (j * 12) + 9);\n      \n      // Read auto-off delay\n      for (int k = 0; k < 4; k++) {\n        ((byte*)&cmd.autoOffDelay)[k] = EEPROM.read(COMMAND_DATA_BASE_ADDR + (i * MAX_COMMANDS_PER_REMOTE * 12) + (j * 12) + 10 + (k * 4));\n      }\n      \n      commands[i * MAX_COMMANDS_PER_REMOTE + j] = cmd;\n    }\n  }\n  \n  // Load remote names\n  for (int i = 0; i < remoteCount; i++) {\n    EEPROM.get(REMOTE_NAME_BASE_ADDR + (i * 32), remotes[i].name, 32);\n  }\n}\n\nvoid saveConfiguration() {\n  EEPROM.put(REMOTE_COUNT_ADDR, remoteCount);\n  \n  // Save remote information\n  for (int i = 0; i < remoteCount; i++) {\n    EEPROM.put(REMOTE_NAME_BASE_ADDR + (i * 32), remotes[i].name, 32);\n    \n    // Save remote hash\n    for (int j = 0; j < 4; j++) {\n      EEPROM.put(REMOTE_NAME_BASE_ADDR + (i * 32) + 32 + (j * 4), ((byte*)&remotes[i].hash)[j]);\n    }\n    \n    // Save command count\n    EEPROM.put(COMMAND_COUNT_BASE_ADDR + i, remotes[i].commandCount);\n    \n    // Save command information\n    for (int j = 0; j < remotes[i].commandCount; j++) {\n      CommandInfo cmd = commands[i * MAX_COMMANDS_PER_REMOTE + j];\n      \n      // Save command hash\n      for (int k = 0; k < 4; k++) {\n        EEPROM.put(COMMAND_DATA_BASE_ADDR + (i * MAX_COMMANDS_PER_REMOTE * 12) + (j * 12) + (k * 4), ((byte*)&cmd.hash)[k]);\n      }\n      \n      // Save relay mask\n      EEPROM.put(COMMAND_DATA_BASE_ADDR + (i * MAX_COMMANDS_PER_REMOTE * 12) + (j * 12) + 8, cmd.relayMask);\n      \n      // Save toggle flag\n      EEPROM.put(COMMAND_DATA_BASE_ADDR + (i * MAX_COMMANDS_PER_REMOTE * 12) + (j * 12) + 9, cmd.toggle);\n      \n      // Save auto-off delay\n      for (int k = 0; k < 4; k++) {\n        EEPROM.put(COMMAND_DATA_BASE_ADDR + (i * MAX_COMMANDS_PER_REMOTE * 12) + (j * 12) + 10 + (k * 4), ((byte*)&cmd.autoOffDelay)[k]);\n      }\n    }\n  }\n  \n  EEPROM.commit();\n  Serial.println(\"Configuration saved to EEPROM\");\n}\n\nvoid loop() {\n  if (irrecv.decode(&results)) {\n    if (results.value) {\n      uint32_t hash = calculateHash(&results);\n      \n      if (learningMode) {\n        // In learning mode, store the new command\n        storeCommand(hash);\n      } else {\n        // In normal mode, execute the command\n        processIRCommand(hash);\n      }\n      \n      lastCommandTime = millis();\n      updateStatusLED();\n    }\n  }\n  \n  // Handle learning mode timeout\n  static unsigned long learningStartTime = 0;\n  if (learningMode && millis() - learningStartTime > 10000) {\n    Serial.println(\"Learning mode timeout\");\n    stopLearningMode();\n  }\n  \n  // Handle auto-off timers\n  handleAutoOff();\n  \n  // Status LED blink\n  static unsigned long lastBlinkTime = 0;\n  if (millis() - lastBlinkTime >= 2000) {\n    digitalWrite(STATUS_LED_PIN, !digitalRead(STATUS_LED_PIN));\n    lastBlinkTime = millis();\n  }\n  \n  delay(100);\n}\n\nvoid processIRCommand(uint32_t hash) {\n  // Find matching command\n  for (int i = 0; i < remoteCount; i++) {\n    if (remotes[i].hash == hash) {\n      for (int j = 0; j < remotes[i].commandCount; j++) {\n        if (commands[i * MAX_COMMANDS_PER_REMOTE + j].hash == hash) {\n          executeCommand(commands[i * MAX_COMMANDS_PER_REMOTE + j]);\n          return;\n        }\n      }\n    }\n  }\n  \n  Serial.print(\"Unknown command hash: 0x\");\n  Serial.print(hash, HEX);\n  Serial.println();\n  beep(100); // Error beep\n}\n\nvoid executeCommand(CommandInfo command) {\n  Serial.print(\"Executing command from \");\n  Serial.print(getRemoteName(command.hash));\n  Serial.print(\": \");\n  \n  // Update relay states\n  for (int i = 0; i < 4; i++) {\n    if (command.relayMask & (1 << i)) {\n      if (command.toggle) {\n        relayStates[i] = !relayStates[i];\n      } else {\n        relayStates[i] = true;\n        // Set auto-off timer if specified\n        if (command.autoOffDelay > 0) {\n          autoOffTimers[i] = millis() + (command.autoOffDelay * 60000UL);\n        }\n      }\n    }\n  }\n  \n  updateRelays();\n  \n  Serial.print(\"Relays activated: \");\n  for (int i = 0; i < 4; i++) {\n    if (relayStates[i]) {\n      Serial.print(\"R\");\n      Serial.print(i + 1);\n    }\n  }\n  Serial.println();\n  \n  beep(200); // Success beep\n}\n\nvoid updateRelays() {\n  for (int i = 0; i < 4; i++) {\n    // Relays are active LOW\n    digitalWrite(relayPins[i], relayStates[i] ? LOW : HIGH);\n  }\n}\n\nvoid updateStatusLED() {\n  if (learningMode) {\n    // Fast blink during learning mode\n    static unsigned long lastBlinkTime = 0;\n    if (millis() - lastBlinkTime >= 200) {\n      digitalWrite(STATUS_LED_PIN, !digitalRead(STATUS_LED_PIN));\n      lastBlinkTime = millis();\n    }\n  } else if (systemArmed) {\n    // Slow blink when armed\n    static unsigned long lastBlinkTime = 0;\n    if (millis() - lastBlinkTime >= 2000) {\n      digitalWrite(STATUS_LED_PIN, !digitalRead(STATUS_LED_PIN));\n      lastBlinkTime = millis();\n    }\n  } else {\n    // Solid when disarmed\n    digitalWrite(LED_PIN, HIGH);\n  }\n}\n\nvoid beep(int duration) {\n  if (BUZZER_PIN > 0) {\n    digitalWrite(BUZZER_PIN, HIGH);\n    delay(duration);\n    digitalWrite(BUZZER_PIN, LOW);\n  }\n}\n\nvoid startLearningMode() {\n  learningMode = true;\n  Serial.println(\"Learning mode started\");\n  Serial.println(\"Point remote at receiver and press button to learn\");\n  Serial.println(\"Timeout: 10 seconds\");\n  \n  beep(1000); // Long beep to indicate learning mode\n  updateStatusLED();\n  \n  learningStartTime = millis();\n}\n\nvoid stopLearningMode() {\n  learningMode = false;\n  Serial.println(\"Learning mode stopped\");\n  \n  saveConfiguration();\n  beep(500); // Confirmation beep\n  updateStatusLED();\n}\n\nvoid storeCommand(uint32_t hash) {\n  // Check if we have space for a new remote\n  if (remoteCount >= MAX_REMOTES) {\n    Serial.println(\"Maximum remotes reached\");\n    return;\n  }\n  \n  // Find if this is a new remote or existing one\n  int remoteIndex = -1;\n  for (int i = 0; i < remoteCount; i++) {\n    if (remotes[i].hash == hash) {\n      remoteIndex = i;\n      break;\n    }\n  }\n  \n  // If new remote, add it\n  if (remoteIndex == -1) {\n    remoteIndex = remoteCount++;\n    remotes[remoteIndex].hash = hash;\n    sprintf(remotes[remoteIndex].name, \"Remote %d\", remoteIndex + 1);\n    remotes[remoteIndex].commandCount = 0;\n    \n    Serial.print(\"New remote learned: \");\n    Serial.println(remotes[remoteIndex].name);\n  }\n  \n  // Add command to remote\n  if (remotes[remoteIndex].commandCount < MAX_COMMANDS_PER_REMOTE) {\n    int cmdIndex = remotes[remoteIndex].commandCount++;\n    CommandInfo cmd;\n    cmd.hash = hash;\n    cmd.relayMask = 0; // No relays by default\n    cmd.toggle = true; // Default to toggle\n    cmd.autoOffDelay = 0; // No auto-off by default\n    \n    commands[remoteIndex * MAX_COMMANDS_PER_REMOTE + cmdIndex] = cmd;\n    remotes[remoteIndex].commandCount++;\n    \n    Serial.print(\"Command learned for \");\n    Serial.print(remotes[remoteIndex].name);\n    Serial.print(\": Command \");\n    Serial.print(cmdIndex + 1);\n    Serial.println();\n  }\n  \n  beep(300); // Success beep\n}\n\nuint32_t calculateHash(decode_results_t *results) {\n  uint32_t hash = 0;\n  hash = ((uint32_t)results->value);\n  hash |= ((uint32_t)results->decode_type) << 24;\n  hash |= ((uint32_t)results->address) << 16;\n  hash |= ((uint32_t)results->command) << 8;\n  hash |= ((uint32_t)results->reserved);\n  return hash;\n}\n\nString getRemoteName(uint32_t hash) {\n  for (int i = 0; i < remoteCount; i++) {\n    if (remotes[i].hash == hash) {\n      return String(remotes[i].name);\n    }\n  }\n  return \"Unknown\";\n}\n\nvoid printStatus() {\n  Serial.println(\"=== Status ===\");\n  Serial.print(\"Device: \");\n  Serial.println(deviceName);\n  Serial.print(\"Mode: \");\n  Serial.println(learningMode ? \"Learning\" : \"Normal\");\n  Serial.print(\"Remotes: \");\n  Serial.println(remoteCount);\n  \n  Serial.println(\"\\nRelay States:\");\n  for (i = 0; i < 4; i++) {\n    Serial.print(\"  Relay \");\n    Serial.print(i + 1);\n    Serial.print(\": \");\n    Serial.println(relayStates[i] ? \"ON\" : \"OFF\");\n  }\n  \n  Serial.println(\"\\nAuto-Off Timers:\");\n  for (int i = 0; i < 4; i++) {\n    if (autoOffTimers[i] > 0) {\n      int remaining = (autoOffTimers[i] - millis()) / 60000;\n      Serial.print(\"  Relay \");\n      Serial.print(i + 1);\n      Serial.print(\": \");\n      Serial.print(remaining);\n      Serial.println(\" minutes remaining\");\n    }\n  }\n  \n  Serial.println(\"\\nCommands in last 5 minutes:\");\n  if (millis() - lastCommandTime < 300000) {\n    Serial.println(\"  Recent: \");\n    Serial.print(getRemoteName(lastCommandHash));\n  } else {\n    Serial.println(\"  No recent commands\");\n  }\n  Serial.println(\"================\\n\");\n}\n\nvoid handleAutoOff() {\n  unsigned long currentTime = millis();\n  \n  for (int i = 0; i < 4; i++) {\n    if (autoOffTimers[i] > 0 && currentTime >= autoOffTimers[i]) {\n      Serial.print(\"Auto-off: Relay \");\n      Serial.print(i + 1);\n      Serial.println(\" turned off automatically\");\n      \n      relayStates[i] = false;\n      autoOffTimers[i] = 0;\n      updateRelays();\n      updateStatusLED();\n      beep(100); // Notification beep\n    }\n  }\n}\n\n// Helper function to print help information\nvoid printHelp() {\n  Serial.println(\"=== Help ===\");\n  Serial.println(\"Commands:\");\n  Serial.println(\"  HELP - Show this help message\");\n  \n  if (remoteCount > 0) {\n    Serial.println(\"\\nLearned Remotes:\");\n    for (i = 0; i < remoteCount; i++) {\n      Serial.print(\"  \");\n      Serial.print(i + 1);\n      Serial.print(\": \");\n      Serial.println(remotes[i].name);\n      \n      Serial.print(\"    Commands: \");\n      for (j = 0; j < remotes[i].commandCount; j++) {\n        CommandInfo cmd = commands[i * MAX_COMMANDS_PER_REMOTE + j];\n        Serial.print(j + 1);\n        Serial.print(\": \");\n        Serial.print(cmd.relayMask, BIN);\n        Serial.print(\");\n        Serial.println(cmd.toggle ? \"(toggle)\" : \"(set)\");\n      }\n    }\n  }\n  \n  Serial.println(\"\\nSystem Commands:\");\n  Serial.println(\"  LEARN - Enter learning mode\");\n  \n  if (learningMode) {\n    Serial.println(\"  EXIT - Exit learning mode\");\n  }\n  \n  Serial.println(\"  STATUS - Show system status\");\n  Serial.println(\"  CLEAR - Turn off all relays\");\n  Serial.println(\"================\\n\");\n}\n\n// Serial command handler for HELP command\nvoid handleSerialCommand(String command) {\n  command.toUpperCase();\n  \n  if (command == \"HELP\") {\n    printHelp();\n  } else if (command == \"LEARN\") {\n    startLearningMode();\n  } else if (command == \"EXIT\") {\n    stopLearningMode();\n  } else if (command == \"STATUS\") {\n    printStatus();\n  } else if (command == \"CLEAR\") {\n    // Turn off all relays\n    for (int i = 0; i < 4; i++) {\n      relayStates[i] = false;\n      autoOffTimers[i] = 0;\n    }\n    updateRelays();\n    updateStatusLED();\n    Serial.println(\"All relays turned off\");\n  } else {\n    Serial.print(\"Unknown command: \");\n    Serial.println(command);\n  }\n}\n\n// Serial input handler\nvoid serialEvent() {\n  if (Serial.available()) {\n    String command = Serial.readStringUntil('\\n');\n    handleSerialCommand(command);\n  }\n}"
+      }
+    },
+    {
+      "type": "wiring_diagram",
+      "path": "ir_remote_wiring.png",
+      "metadata": {
+        "description": "Wiring diagram for IR receiver and relay module",
+        "connections": [
+          {
+            "from": "Arduino 5V",
+            "to": "IR Receiver VCC",
+            "wire_color": "red"
+          },
+          {
+            "from": "Arduino GND",
+            "to": "IR Receiver GND",
+            "wire_color": "black"
+          },
+          {
+            "from": "Arduino Digital Pin {{.irReceiverPin}}",
+            "to": "IR Receiver Data",
+            "wire_color": "yellow"
+          },
+          {
+            "from": "Arduino 5V",
+            "to": "Relay Module VCC",
+            "wire_color": "red"
+          },
+          {
+            "from": "Arduino GND",
+            "to": "Relay Module GND",
+            "wire_color": "black"
+          },
+          {
+            "from": "Arduino Digital Pin {{.relay1Pin}}",
+            "to": "Relay Module IN1",
+            "wire_color": "blue"
+          },
+          {
+            "from": "Arduino Digital Pin {{.relay2Pin}}",
+            "to": "Relay Module IN2",
+            "wire_color": "green"
+          },
+          {
+            "from": "Arduino Digital Pin {{.relay3Pin}}",
+            "to": "Relay Module IN3",
+            "wire_color": "orange"
+          },
+          {
+            "from": "Arduino Digital Pin {{.relay4Pin}}",
+            "to": "Relay Module IN4",
+            "wire_color": "purple"
+          },
+          {
+            "from": "Arduino Digital Pin {{.ledPin}}",
+            "to": "LED Anode",
+            "wire_color": "yellow"
+          },
+          {
+            "from": "Arduino GND",
+            "to": "LED Cathode",
+            "wire_color": "black"
+          },
+          {
+            "from": "Arduino Digital Pin {{.buzzerPin}}",
+            "to": "Buzzer +",
+            "wire_color": "orange"
+          },
+          {
+            "from": "Arduino GND",
+            "to": "Buzzer -",
+            "wire_color": "black"
+          }
+        ]
+      }
+    },
+    {
+      "type": "documentation",
+      "path": "README.md",
+      "metadata": {
+        "content": "# IR Remote Control for Appliance Automation\n\n## Overview\nThis template implements an infrared remote control system for appliance automation with learning capabilities. It can learn multiple remote controls and execute commands to control up to 4 relays for various appliances.\n\n## Features\n- IR remote learning capability\n- Support for multiple remotes (up to 10)\n- 4-channel relay control\n- Command storage in EEPROM\n- Auto-off timers for safety\n- Status LED indication\n- Audio feedback via buzzer\n- Serial command interface\n- Command toggle and set modes\n- Auto-off protection\n\n## Learning Mode\n- **Activation**: Hold any button for 3 seconds\n- **Timeout**: 10 seconds\n- **LED Indicator**: Fast blinking during learning\n- **Audio Feedback**: Confirmation beeps\n- **Storage**: Commands saved to EEPROM\n\n## Supported Remote Types\n- **TV Remotes**: Standard television remotes\n- **AC Remotes**: Air conditioner remotes\n- **Universal Remotes**: Most universal remotes\n- **Custom Remotes: Any IR remote\n\n## Command Types\n- **Toggle**: Turn relay on/off (default)\n- **Set**: Set relay to specific state\n- **Auto-Off**: Turn off after specified delay\n- **Multi-Relay**: Control multiple relays simultaneously\n\n## Configuration Options\n- **IR Receiver Pin**: Digital pin for IR receiver (default: 11)\n- **Relay Pins**: Digital pins for 4 relays (default: 2,3,4,5)\n- **Status LED Pin**: LED for status indication (default: 13)\n- **Buzzer Pin**: Audio feedback (0=disabled, default: 0)\n- **Learning Mode**: Enable/disable learning capability (default: true)\n- **Auto-Off Delay**: Default auto-off delay in minutes (0=disabled, default: 0)\n- **Device Name**: Custom device name (default: \"IR Remote Controller\")\n- **Remote Names**: Names for learned remotes\n\n## EEPROM Storage\n- **Remote Information**: Remote hashes and names\n- **Command Data**: Command hashes and relay masks\n- **Auto-Off Timers**: Command-specific timers\n- **Configuration**: System settings\n\n## Wiring\n- IR Receiver VCC → Arduino 5V\n- IR Receiver GND → Arduino GND\n- IR Receiver Data → Arduino Digital Pin {{.irReceiverPin}}\n- Relay Module VCC → Arduino 5V\n- Relay Module GND → Arduino GND\n- Relay Module IN1 → Arduino Digital Pin {{.relay1Pin}}\n- Relay Module IN2 → Arduino Digital Pin {{.relay2Pin}}\n- Relay Module IN3 → Arduino Digital Pin {{.relay3Pin}}\n- Relay Module IN4 → Arduino Digital Pin {{.relay4Pin}}\n- LED Anode → Arduino Digital Pin {{.ledPin}} (with 220Ω resistor)\n- LED Cathode → Arduino GND\n- Buzzer + → Arduino Digital Pin {{.buzzerPin}} (if enabled)\n- Buzzer - → Arduino GND (if enabled)\n\n## Appliance Connections\n- **Relay COM**: Power supply positive terminal\n- **Relay NO**: Appliance positive terminal\n- **Appliance Negative**: Power supply negative terminal\n\n**Power Requirements**:\n- **Relay Rating**: Match appliance requirements\n- **Power Supply**: Adequate for connected appliances\n- **Wire Gauge**: Appropriate for current draw\n\n\n## Serial Commands\nSend commands via serial monitor:\n```\nHELP    - Show help information\nLEARN   - Enter learning mode\nEXIT    - Exit learning mode\nSTATUS  - Show system status\nCLEAR   - Turn off all relays\n```\n\n## Command Storage\nEach learned command stores:\n- **Hash**: Unique identifier for the IR signal\n- **Relay Mask**: Bitmask for which relays to control\n- **Toggle**: Whether to toggle or set state\n- **Auto-Off**: Auto-off delay in minutes\n\n## API Integration\nThe system can be extended with:\n- MQTT integration for IoT platforms\n- Web interface for remote control\n- Mobile app integration\n- Voice assistant integration\n- Automation rules and scheduling\n\n## Dependencies\n- IRremote library v3.3.0\n- ArduinoJson v6.21.3\n- EEPROM library (built-in)\n\n## Troubleshooting\n- **IR Not Receiving**: Check IR receiver connections\n- **Commands Not Working**: Verify remote compatibility\n- **Relays Not Responding**: Check relay wiring and power supply\n- **EEPROM Issues**: Verify EEPROM size and connections\n- **Learning Problems**: Check timing and button press duration\n- **False Triggers**: Check IR interference sources\n\n## Advanced Features\n- **Multi-Command**: Execute multiple commands with one button\n- **Scene Control**: Predefined appliance combinations\n- **Voice Control**: Integration with voice assistants\n- **Mobile App**: Remote control via smartphone\n- **Cloud Sync**: Backup and sync configurations\n- **Analytics**: Usage statistics and patterns\n\n## Safety Features\n- **Auto-Off Protection**: Prevents appliances from being left on\n- **Learning Mode Protection**: Prevents accidental learning\n- **Power Monitoring**: Check for overload conditions\n- **Error Handling**: Robust error detection and recovery\n- **Status Indication**: Clear visual and audio feedback\n\n## Performance Specifications\n- **IR Range**: 5-10 meters (typical)\n- **Response Time**: <100ms\n- **Memory Usage**: ~2KB for configuration\n- **EEPROM Size**: 512 bytes\n- **Relay Switching**: <10ms\n- **Power Consumption**: ~50mA (without relays)\n\n## Supported IR Protocols\n- **NEC**: Most common TV remotes\n- **RC-5**: Some older remotes\n- **RC-6**: Some air conditioner remotes\n- **Sony SIRC**: Sony protocol\n- **RCMM**: Some universal remotes\n- **RC-5**: Some newer protocols\n\n## Compatibility\n- **TV Remotes**: Most brands (Samsung, LG, Sony, etc.)\n- **AC Remotes**: Most brands (Carrier, Trane, etc.)\n- **Universal Remotes**: One-for-all remotes\n- **Custom Remotes: Any IR remote\n\n## Maintenance\n- **IR Receiver Cleaning**: Keep IR receiver clean for optimal range\n- **Battery Check**: Replace remote batteries periodically\n- **Connection Check**: Verify all wiring connections\n- **EEPROM Health**: Check for data integrity\n- **Pattern Updates**: Update command sets as needed\n- **Firmware Updates**: Keep firmware current\n\n## Use Cases\n- **Home Automation**: Control lights, fans, and other appliances\n- **Home Theater**: Control TV, sound system, and devices\n- **Climate Control**: Air conditioners and heaters\n- **Lighting Control**: Room and accent lighting\n- **Appliance Management**: Turn devices on/off remotely\n- **Accessibility**: Voice control for accessibility needs\n- **Energy Management**: Automated energy saving"
+      }
+    }
+  ],
+  "wiring_spec": {
+    "components": [
+      {
+        "id": "arduino",
+        "type": "board",
+        "name": "Arduino Board",
+        "pins": [
+          {"number": "5V", "name": "5V", "type": "power"},
+          {"number": "GND", "name": "gnd", "type": "ground"},
+          {"number": "{{.irReceiverPin}}", "name": "D{{.irReceiverPin}}", "type": "digital"},
+          {"number": "{{.relay1Pin}}", "name": "D{{.relay1Pin}}", "type": "digital"},
+          {"number": "{{.relay2Pin}}", "name": "D{{.relay2Pin}}", "type": "digital"},
+          {"number": "{{.relay3Pin}}", "name": "D{{.relay3Pin}}", "type": "digital"},
+          {"number": "{{.relay4Pin}}", "name": "D{{.relay4Pin}}", "type": "digital"},
+          {"number": "{{.ledPin}}", "name": "D{{.ledPin}}", "type": "digital"},
+          {"number": "{{.buzzerPin}}", "name": "D{{.buzzerPin}}", "type": "digital"}
+        ]
+      },
+      {
+        "id": "ir-receiver",
+        "type": "sensor",
+        "name": "IR Receiver Module",
+        "pins": [
+          {"number": "1", "name": "VCC", "type": "power"},
+          {"number": "2", "name": "GND", "type": "ground"},
+          {"number": "3", "name": "DATA", "type": "digital"}
+        ]
+      },
+      {
+        "id": "relay-module",
+        "type": "actuator",
+        "name": "4-Channel Relay Module",
+        "pins": [
+          {"number": "1", "name": "VCC", "type": "power"},
+          {"number": "2", "name": "GND", "type": "ground"},
+          {"number": "3", "name": "IN1", "type": "digital"},
+          {"number": "4", "name": "IN2", "type": "digital"},
+          {"number": "5", "name": "IN3", "type": "digital"},
+          {"number": "6", "name": "IN4", "type": "digital"},
+          {"number": "7", "name": "COM1", "type": "power"},
+          {"number": "8", "name": "NO1", "type": "power"},
+          {"number": "9", "name": "COM2", "type": "power"},
+          {"number": "10", "name": "NO2", "type": "power"},
+          {"number": "11", "name": "COM3", "type": "power"},
+          {"number": "12", "name": "NO3", "type": "power"},
+          {"number": "13", "name": "COM4", "type": "power"},
+          {"number": "14", "name": "NO4", "type": "power"}
+        ]
+      },
+      {
+        "id": "led",
+        "type": "indicator",
+        "name": "Status LED",
+        "pins": [
+          {"number": "1", "name": "Anode", "type": "digital"},
+          {"number": "2", "name": "Cathode", "type": "ground"}
+        ]
+      },
+      {
+        "id": "buzzer",
+        "type": "indicator",
+        "name": "Alert Buzzer",
+        "pins": [
+          {"number": "1", "name": "+", "type": "digital"},
+          {"number": "2", "name": "-", "type": "ground"}
+        ]
+      }
+    ],
+    "connections": [
+      {
+        "from_component": "arduino",
+        "from_pin": "5V",
+        "to_component": "ir-receiver",
+        "to_pin": "1",
+        "wire_color": "red"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "GND",
+        "to_component": "ir-receiver",
+        "to_pin": "2",
+        "wire_color": "black"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "{{.irReceiverPin}}",
+        "to_component": "ir-receiver",
+        "to_pin": "3",
+        "wire_color": "yellow"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "5V",
+        "to_component": "relay-module",
+        "to_pin": "1",
+        "wire_color": "red"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "GND",
+        "to_component": "relay-module",
+        "to_pin": "2",
+        "wire_color": "black"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "{{.relay1Pin}}",
+        "to_component": "relay-module",
+        "to_pin": "3",
+        "wire_color": "blue"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "{{.relay2Pin}}",
+        "to_component": "relay-module",
+        "to_pin": "4",
+        "wire_color": "green"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "{{.relay3Pin}}",
+        "to_component": "relay-module",
+        "to_pin": "5",
+        "wire_color": "orange"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "{{.relay4Pin}}",
+        "to_component": "relay-module",
+        "to_pin": "6",
+        "wire_color": "purple"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "{{.ledPin}}",
+        "to_component": "led",
+        "to_pin": "1",
+        "wire_color": "yellow"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "GND",
+        "to_component": "led",
+        "to_pin": "2",
+        "wire_color": "black"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "{{.buzzerPin}}",
+        "to_component": "buzzer",
+        "to_pin": "1",
+        "wire_color": "orange"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "GND",
+        "to_component": "buzzer",
+        "to_pin": "2",
+        "wire_color": "black"
+      }
+    ]
+  }
+}

@@ -1,0 +1,170 @@
+{
+  "id": "dht22-mqtt-sensor",
+  "name": "DHT22 Temperature & Humidity Sensor with MQTT",
+  "version": "1.0.0",
+  "category": "sensing",
+  "description": "DHT22 temperature and humidity sensor that publishes data to MQTT broker with configurable intervals",
+  "author": "ATHENA Team",
+  "boards_supported": ["arduino:avr:uno", "arduino:avr:nano", "esp32:esp32:devkitv1"],
+  "libraries": [
+    {
+      "name": "DHT sensor library",
+      "version": "1.4.4"
+    },
+    {
+      "name": "Adafruit Unified Sensor",
+      "version": "1.1.9"
+    },
+    {
+      "name": "PubSubClient",
+      "version": "2.8"
+    },
+    {
+      "name": "ArduinoJson",
+      "version": "6.21.3"
+    }
+  ],
+  "schema": {
+    "type": "object",
+    "properties": {
+      "dhtPin": {
+        "type": "integer",
+        "title": "DHT22 Data Pin",
+        "description": "Digital pin connected to DHT22 data line",
+        "minimum": 2,
+        "maximum": 13,
+        "default": 2
+      },
+      "interval": {
+        "type": "integer",
+        "title": "Reading Interval",
+        "description": "Time between sensor readings in milliseconds",
+        "minimum": 1000,
+        "maximum": 60000,
+        "default": 5000
+      },
+      "mqttServer": {
+        "type": "string",
+        "title": "MQTT Broker Address",
+        "description": "IP address or hostname of MQTT broker",
+        "default": "192.168.1.100"
+      },
+      "mqttPort": {
+        "type": "integer",
+        "title": "MQTT Broker Port",
+        "description": "Port number of MQTT broker",
+        "minimum": 1,
+        "maximum": 65535,
+        "default": 1883
+      },
+      "deviceId": {
+        "type": "string",
+        "title": "Device ID",
+        "description": "Unique identifier for this device",
+        "default": "dht22-sensor-01"
+      },
+      "location": {
+        "type": "string",
+        "title": "Location",
+        "description": "Physical location of the sensor",
+        "default": "living-room"
+      }
+    },
+    "required": ["dhtPin", "mqttServer", "deviceId"]
+  },
+  "parameters": {
+    "dhtPin": 2,
+    "interval": 5000,
+    "mqttServer": "192.168.1.100",
+    "mqttPort": 1883,
+    "deviceId": "dht22-sensor-01",
+    "location": "living-room"
+  },
+  "assets": [
+    {
+      "type": "code",
+      "path": "dht22_mqtt_sensor.ino",
+      "metadata": {
+        "content": "#include <DHT.h>\n#include <DHT_U.h>\n#include <WiFi.h>\n#include <PubSubClient.h>\n#include <ArduinoJson.h>\n\n// DHT22 Sensor Configuration\n#define DHTPIN {{.dhtPin}}\n#define DHTTYPE DHT22\nDHT dht(DHTPIN, DHTTYPE);\n\n// WiFi Configuration (to be configured per device)\nconst char* ssid = \"YOUR_WIFI_SSID\";\nconst char* password = \"YOUR_WIFI_PASSWORD\";\n\n// MQTT Configuration\nconst char* mqtt_server = \"{{.mqttServer}}\";\nconst int mqtt_port = {{.mqttPort}};\nconst char* device_id = \"{{.deviceId}}\";\nconst char* location = \"{{.location}}\";\nconst unsigned long reading_interval = {{.interval}};\n\n// MQTT Topics\nchar temp_topic[100];\nchar humidity_topic[100];\nchar status_topic[100];\nchar json_topic[100];\n\n// Global variables\nWiFiClient wifiClient;\nPubSubClient mqttClient(wifiClient);\nunsigned long last_reading_time = 0;\nfloat last_temperature = 0.0;\nfloat last_humidity = 0.0;\nbool sensor_error = false;\n\n// Function prototypes\nvoid setup_wifi();\nvoid mqtt_callback(char* topic, byte* payload, unsigned int length);\nvoid publish_sensor_data();\nvoid publish_status();\nbool reconnect_mqtt();\n\nvoid setup() {\n  Serial.begin(115200);\n  Serial.println(\"DHT22 MQTT Sensor Starting...\");\n  \n  // Initialize DHT sensor\n  dht.begin();\n  \n  // Setup MQTT topics\n  snprintf(temp_topic, sizeof(temp_topic), \"athena/sensors/%s/%s/temperature\", device_id, location);\n  snprintf(humidity_topic, sizeof(humidity_topic), \"athena/sensors/%s/%s/humidity\", device_id, location);\n  snprintf(status_topic, sizeof(status_topic), \"athena/sensors/%s/%s/status\", device_id, location);\n  snprintf(json_topic, sizeof(json_topic), \"athena/sensors/%s/%s/data\", device_id, location);\n  \n  // Connect to WiFi\n  setup_wifi();\n  \n  // Setup MQTT\n  mqttClient.setServer(mqtt_server, mqtt_port);\n  mqttClient.setCallback(mqtt_callback);\n  \n  // Take initial reading\n  delay(2000); // Wait for sensor to stabilize\n  publish_sensor_data();\n  \n  Serial.println(\"Setup completed!\");\n}\n\nvoid loop() {\n  // Check WiFi connection\n  if (WiFi.status() != WL_CONNECTED) {\n    setup_wifi();\n  }\n  \n  // Check MQTT connection\n  if (!mqttClient.connected()) {\n    reconnect_mqtt();\n  }\n  mqttClient.loop();\n  \n  // Publish sensor data at specified interval\n  unsigned long current_time = millis();\n  if (current_time - last_reading_time >= reading_interval) {\n    publish_sensor_data();\n    last_reading_time = current_time;\n  }\n  \n  // Small delay to prevent watchdog issues\n  delay(100);\n}\n\nvoid setup_wifi() {\n  Serial.println(\"Connecting to WiFi...\");\n  \n  WiFi.begin(ssid, password);\n  \n  int attempts = 0;\n  while (WiFi.status() != WL_CONNECTED && attempts < 20) {\n    delay(500);\n    Serial.print(\".\");\n    attempts++;\n  }\n  \n  if (WiFi.status() == WL_CONNECTED) {\n    Serial.println(\"\");\n    Serial.println(\"WiFi connected!\");\n    Serial.print(\"IP address: \");\n    Serial.println(WiFi.localIP());\n  } else {\n    Serial.println(\"Failed to connect to WiFi\");\n  }\n}\n\nvoid mqtt_callback(char* topic, byte* payload, unsigned int length) {\n  // Handle incoming MQTT messages if needed\n  String message = \"\";\n  for (int i = 0; i < length; i++) {\n    message += (char)payload[i];\n  }\n  \n  Serial.print(\"Message received [\" + String(topic) + \"]: \");\n  Serial.println(message);\n}\n\nvoid publish_sensor_data() {\n  // Read temperature and humidity\n  float humidity = dht.readHumidity();\n  float temperature = dht.readTemperature();\n  \n  // Check if readings are valid\n  if (isnan(humidity) || isnan(temperature)) {\n    Serial.println(\"Failed to read from DHT sensor!\");\n    sensor_error = true;\n    publish_status();\n    return;\n  }\n  \n  sensor_error = false;\n  last_temperature = temperature;\n  last_humidity = humidity;\n  \n  // Create JSON document\n  StaticJsonDocument<200> doc;\n  doc[\"device_id\"] = device_id;\n  doc[\"location\"] = location;\n  doc[\"timestamp\"] = millis();\n  doc[\"temperature\"] = temperature;\n  doc[\"humidity\"] = humidity;\n  doc[\"unit_temp\"] = \"°C\";\n  doc[\"unit_humidity\"] = \"%\";\n  \n  // Publish individual values\n  char temp_str[10];\n  char humidity_str[10];\n  dtostrf(temperature, 4, 2, temp_str);\n  dtostrf(humidity, 4, 2, humidity_str);\n  \n  mqttClient.publish(temp_topic, temp_str);\n  mqttClient.publish(humidity_topic, humidity_str);\n  \n  // Publish JSON data\n  String json_string;\n  serializeJson(doc, json_string);\n  mqttClient.publish(json_topic, json_string.c_str());\n  \n  // Log to serial\n  Serial.print(\"Temperature: \");\n  Serial.print(temperature);\n  Serial.print(\"°C, Humidity: \");\n  Serial.print(humidity);\n  Serial.println(\"%\");\n}\n\nvoid publish_status() {\n  StaticJsonDocument<100> doc;\n  doc[\"device_id\"] = device_id;\n  doc[\"location\"] = location;\n  doc[\"status\"] = sensor_error ? \"error\" : \"online\";\n  doc[\"wifi_connected\"] = WiFi.status() == WL_CONNECTED;\n  doc[\"timestamp\"] = millis();\n  \n  String status_string;\n  serializeJson(doc, status_string);\n  mqttClient.publish(status_topic, status_string.c_str());\n}\n\nbool reconnect_mqtt() {\n  int attempts = 0;\n  while (!mqttClient.connected() && attempts < 3) {\n    Serial.print(\"Attempting MQTT connection...\");\n    \n    String client_id = \"athena-device-\" + String(device_id);\n    if (mqttClient.connect(client_id.c_str())) {\n      Serial.println(\"connected\");\n      \n      // Publish initial status\n      publish_status();\n      \n      return true;\n    } else {\n      Serial.print(\"failed, rc=\");\n      Serial.print(mqttClient.state());\n      Serial.println(\" try again in 5 seconds\");\n      delay(5000);\n      attempts++;\n    }\n  }\n  \n  return false;\n}"
+      }
+    },
+    {
+      "type": "wiring_diagram",
+      "path": "dht22_wiring.png",
+      "metadata": {
+        "description": "Wiring diagram for DHT22 sensor connection",
+        "connections": [
+          {
+            "from": "DHT22 VCC",
+            "to": "Arduino 5V",
+            "wire_color": "red"
+          },
+          {
+            "from": "DHT22 GND", 
+            "to": "Arduino GND",
+            "wire_color": "black"
+          },
+          {
+            "from": "DHT22 Data",
+            "to": "Arduino Digital Pin {{.dhtPin}}",
+            "wire_color": "blue"
+          }
+        ]
+      }
+    },
+    {
+      "type": "documentation",
+      "path": "README.md",
+      "metadata": {
+        "content": "# DHT22 Temperature & Humidity Sensor with MQTT\n\n## Overview\nThis template implements a DHT22 temperature and humidity sensor that publishes readings to an MQTT broker. It's designed for Arduino Uno/Nano and ESP32 boards.\n\n## Features\n- Temperature and humidity monitoring with DHT22 sensor\n- MQTT publishing of sensor data\n- JSON and individual topic publishing\n- WiFi connectivity management\n- Error handling and status reporting\n- Configurable reading intervals\n- Device location tagging\n\n## MQTT Topics\n- `athena/sensors/{device_id}/{location}/temperature` - Temperature in Celsius\n- `athena/sensors/{device_id}/{location}/humidity` - Humidity in percentage\n- `athena/sensors/{device_id}/{location}/data` - JSON with all sensor data\n- `athena/sensors/{device_id}/{location}/status` - Device status\n\n## Configuration\nConfigure the WiFi credentials in the sketch:\n```cpp\nconst char* ssid = \"YOUR_WIFI_SSID\";\nconst char* password = \"YOUR_WIFI_PASSWORD\";\n```\n\n## Wiring\n- DHT22 VCC → Arduino 5V\n- DHT22 GND → Arduino GND  \n- DHT22 Data → Arduino Digital Pin {{.dhtPin}}\n\n## Dependencies\n- DHT sensor library v1.4.4\n- Adafruit Unified Sensor v1.1.9\n- PubSubClient v2.8\n- ArduinoJson v6.21.3\n\n## Usage\n1. Configure WiFi settings\n2. Set MQTT broker address\n3. Configure device ID and location\n4. Upload to Arduino board\n5. Monitor MQTT topics for sensor data"
+      }
+    }
+  ],
+  "wiring_spec": {
+    "components": [
+      {
+        "id": "arduino",
+        "type": "board",
+        "name": "Arduino Board",
+        "pins": [
+          {"number": "5V", "name": "5V", "type": "power"},
+          {"number": "GND", "name": "GND", "type": "ground"},
+          {"number": "{{.dhtPin}}", "name": "D{{.dhtPin}}", "type": "digital"}
+        ]
+      },
+      {
+        "id": "dht22",
+        "type": "sensor",
+        "name": "DHT22 Sensor",
+        "pins": [
+          {"number": "1", "name": "VCC", "type": "power"},
+          {"number": "2", "name": "DATA", "type": "digital"},
+          {"number": "4", "name": "GND", "type": "ground"}
+        ]
+      }
+    ],
+    "connections": [
+      {
+        "from_component": "arduino",
+        "from_pin": "5V",
+        "to_component": "dht22",
+        "to_pin": "1",
+        "wire_color": "red"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "GND",
+        "to_component": "dht22",
+        "to_pin": "4",
+        "wire_color": "black"
+      },
+      {
+        "from_component": "arduino",
+        "from_pin": "{{.dhtPin}}",
+        "to_component": "dht22",
+        "to_pin": "2",
+        "wire_color": "blue"
+      }
+    ]
+  }
+}
