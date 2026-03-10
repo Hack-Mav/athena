@@ -31,7 +31,7 @@
     - Create wiring diagram generation using Mermaid syntax
     - _Requirements: 2.2, 2.4, 9.1, 9.4_
 
-  - [ ]* 2.4 Write unit tests for template operations
+  - [x] 2.4 Write unit tests for template operations
     - Test template CRUD operations with various data scenarios
     - Validate schema enforcement and parameter rendering accuracy
     - Test wiring diagram generation with different component combinations
@@ -60,7 +60,7 @@
     - Create post-flash health check system via serial communication
     - _Requirements: 4.2, 4.4_
 
-  - [ ]* 3.4 Write integration tests for provisioning workflow
+  - [x] 3.4 Write integration tests for provisioning workflow
     - Test compilation pipeline with various template and board combinations
     - Mock hardware interactions for automated testing
     - Validate error handling for common failure scenarios
@@ -81,7 +81,7 @@
     - Create authentication middleware for device communications
     - _Requirements: 8.3, 4.5_
 
-  - [ ]* 4.3 Write security tests and validation
+  - [x] 4.3 Write security tests and validation
     - Test secret injection without exposure in logs or artifacts
     - Validate certificate generation and device authentication flows
     - Test access control enforcement and audit trail completeness
@@ -273,29 +273,29 @@
     - Test responsive design and accessibility compliance
     - _Requirements: 7.2, 7.4_
 
-- [ ] 11. Create initial template library
-  - [ ] 11.1 Develop sensing and monitoring templates
+- [x] 11. Create initial template library
+  - [x] 11.1 Develop sensing and monitoring templates
     - Create DHT22 temperature/humidity sensor template with MQTT publishing
     - Build ultrasonic distance sensor template with threshold alerts
     - Implement soil moisture monitoring template with pump control
     - Create air quality sensor template with LED indicator and logging
     - _Requirements: 1.1, 2.1, 2.3_
 
-  - [ ] 11.2 Build automation and control templates
+  - [x] 11.2 Build automation and control templates
     - Create 4-channel relay controller template with web interface
     - Implement servo motor control template with position feedback
     - Build LED strip animation template with pattern configuration
     - Create IR remote control template for appliance automation
     - _Requirements: 1.1, 2.1, 2.3_
 
-  - [ ] 11.3 Develop IoT connectivity templates
+  - [x] 11.3 Develop IoT connectivity templates
     - Create Wi-Fi configuration template with captive portal
     - Build MQTT bridge template for sensor data aggregation
     - Implement HTTP webhook client template for external integrations
     - Create BLE beacon template for proximity-based automation
     - _Requirements: 1.1, 2.1, 2.3_
 
-  - [ ]* 11.4 Write template validation tests
+  - [x]* 11.4 Write template validation tests
     - Test template compilation across supported Arduino boards
     - Validate parameter schemas and default value handling
     - Test wiring diagram generation and component compatibility
