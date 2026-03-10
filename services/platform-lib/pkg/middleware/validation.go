@@ -88,43 +88,6 @@ func (vm *ValidationMiddleware) SanitizeInput() gin.HandlerFunc {
 	}
 }
 
-// RateLimitMiddleware provides basic rate limiting
-type RateLimitMiddleware struct {
-	// In production, this should use a proper rate limiting library
-	// like go-redis rate limiter or token bucket algorithm
-	requests    map[string]int
-	maxRequests int
-}
-
-// NewRateLimitMiddleware creates a new rate limiting middleware
-func NewRateLimitMiddleware(maxRequests int) *RateLimitMiddleware {
-	return &RateLimitMiddleware{
-		requests:    make(map[string]int),
-		maxRequests: maxRequests,
-	}
-}
-
-// RateLimit applies rate limiting based on client IP
-func (rlm *RateLimitMiddleware) RateLimit() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		clientIP := c.ClientIP()
-
-		// Simple in-memory rate limiting (for demo purposes)
-		// In production, use Redis or similar for distributed rate limiting
-		if rlm.requests[clientIP] >= rlm.maxRequests {
-			c.JSON(http.StatusTooManyRequests, gin.H{
-				"error":   "Rate limit exceeded",
-				"message": "Too many requests, please try again later",
-			})
-			c.Abort()
-			return
-		}
-
-		rlm.requests[clientIP]++
-		c.Next()
-	}
-}
-
 // SecurityHeadersMiddleware adds security headers
 func SecurityHeadersMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
