@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ProvisioningWorkflow } from "../provisioning-workflow";
 import type { Device, ProvisioningJob } from "@/lib/devices/types";
@@ -110,7 +110,6 @@ describe("ProvisioningWorkflow", () => {
   });
 
   it("allows editing configuration JSON", async () => {
-    const user = userEvent.setup();
     render(
       <ProvisioningWorkflow
         device={mockDevice}

@@ -78,15 +78,7 @@ export default function DeviceMonitoringPage() {
     );
   }
 
-  // Calculate metrics from telemetry data
-  const metrics = telemetry.reduce((acc, series) => {
-    const latest = series.points[series.points.length - 1];
-    if (latest) {
-      acc[series.metric] = latest.value;
-    }
-    return acc;
-  }, {} as Record<string, number>);
-
+  
   return (
     <DashboardShell title={`Device Monitoring - ${deviceId}`}>
       <div className="space-y-6">

@@ -23,7 +23,7 @@ export function DashboardShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { refreshToken, isAuthenticated, initialized } = useAuth();
+  const { refreshToken, isAuthenticated, initialized, isDemoMode, user } = useAuth();
 
   useEffect(() => {
     if (!initialized) return;
@@ -33,7 +33,7 @@ export function DashboardShell({
   }, [initialized, isAuthenticated, router]);
 
   async function handleLogout() {
-    if (refreshToken) {
+    if (refreshToken && !isDemoMode) {
       try {
         await logout({ refreshToken });
       } catch {
@@ -43,6 +43,8 @@ export function DashboardShell({
     if (typeof window !== "undefined") {
       window.localStorage.removeItem("athena_access_token");
       window.localStorage.removeItem("athena_refresh_token");
+      window.localStorage.removeItem("athena_user");
+      window.localStorage.removeItem("athena_demo_mode");
     }
     router.push("/login");
   }
@@ -92,6 +94,22 @@ export function DashboardShell({
           <h1 className="text-base font-semibold text-zinc-900 md:text-lg">
             {title}
           </h1>
+          <div className="flex items-center gap-3">
+            {isDemoMode && (
+              <div className="flex items-center gap-2 rounded-md bg-blue-100 px-2 py-1 text-xs text-blue-700">
+                <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                Demo Mode
+              </div>
+            )}
+            <div className="flex items-center gap-2 text-sm text-zinc-600">
+              <span className="font-medium">{user?.email}</span>
+              {user?.roles.includes("admin") && (
+                <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs font-medium text-zinc-700">
+                  Admin
+                </span>
+              )}
+            </div>
+          </div>
         </header>
         <main className="flex-1 px-4 py-4 md:px-6 md:py-6">{children}</main>
       </div>

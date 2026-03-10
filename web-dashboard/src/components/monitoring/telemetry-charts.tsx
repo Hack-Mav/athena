@@ -52,14 +52,14 @@ export function TelemetryCharts({
     allPoints.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
     // Group by timestamp for chart data
-    const timeGroups = new Map<string, any>();
+    const timeGroups = new Map<string, Record<string, unknown>>();
     
     allPoints.forEach((point) => {
       const timeKey = new Date(point.timestamp).toISOString();
       if (!timeGroups.has(timeKey)) {
         timeGroups.set(timeKey, { timestamp: timeKey, time: new Date(point.timestamp) });
       }
-      const group = timeGroups.get(timeKey);
+      const group = timeGroups.get(timeKey)!;
       const key = `${point.deviceId}-${point.metric}`;
       group[key] = point.value;
     });

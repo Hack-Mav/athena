@@ -1,5 +1,4 @@
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { DashboardShell } from "../dashboard-shell";
 
 // Mock next/navigation
