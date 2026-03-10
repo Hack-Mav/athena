@@ -85,12 +85,13 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// Generate JWT token
-	token, err := h.jwtAuth.GenerateToken(
+	// Generate JWT token pair
+	tokenPair, err := h.jwtAuth.GenerateTokenPair(
 		"user-123", // Mock user ID
 		req.Username,
-		[]string{"user"}, // Mock roles
-		24*time.Hour,     // 24 hour expiry
+		[]string{"user"},          // Mock roles
+		[]string{"read", "write"}, // Mock permissions
+		map[string]string{"department": "engineering"}, // Mock metadata
 	)
 	if err != nil {
 		h.logger.Error("Failed to generate token", "error", err)
@@ -101,8 +102,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, LoginResponse{
-		Token:     token,
-		ExpiresAt: time.Now().Add(24 * time.Hour),
+		Token:     tokenPair.AccessToken,
+		ExpiresAt: tokenPair.ExpiresAt,
 		User: UserInfo{
 			ID:       "user-123",
 			Username: req.Username,
@@ -138,24 +139,30 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 		return
 	}
 
-	// Generate new token with same claims
-	newToken, err := h.jwtAuth.GenerateToken(
+	// Generate new token pair with same claims
+	newTokenPair, err := h.jwtAuth.GenerateTokenPair(
 		claims.UserID,
 		claims.Username,
 		claims.Roles,
-		24*time.Hour,
+		claims.Permissions,
+		claims.Metadata,
 	)
 	if err != nil {
-		h.logger.Error("Failed to refresh token", "error", err)
+		h.logger.Error("Failed to generate new token", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to refresh token",
+			"error": "Failed to generate new authentication token",
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"token":      newToken,
-		"expires_at": time.Now().Add(24 * time.Hour),
+	c.JSON(http.StatusOK, LoginResponse{
+		Token:     newTokenPair.AccessToken,
+		ExpiresAt: newTokenPair.ExpiresAt,
+		User: UserInfo{
+			ID:       claims.UserID,
+			Username: claims.Username,
+			Roles:    claims.Roles,
+		},
 	})
 }
 
