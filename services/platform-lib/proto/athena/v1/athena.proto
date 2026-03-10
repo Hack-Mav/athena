@@ -1,0 +1,550 @@
+syntax = "proto3";
+
+package athena.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/athena/platform-lib/pkg/grpc/v1";
+
+// Common message types
+message User {
+  string id = 1;
+  string username = 2;
+  string email = 3;
+  repeated string roles = 4;
+  repeated string permissions = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+message Device {
+  string id = 1;
+  string name = 2;
+  string type = 3;
+  string status = 4;
+  map<string, string> metadata = 5;
+  google.protobuf.Timestamp last_seen = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+message Template {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string category = 4;
+  string board_type = 5;
+  string code = 6;
+  map<string, string> parameters = 7;
+  repeated string sensors = 8;
+  string version = 9;
+  bool is_active = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+}
+
+message TelemetryData {
+  string device_id = 1;
+  map<string, string> data = 2;
+  google.protobuf.Timestamp timestamp = 3;
+}
+
+message HealthCheckResponse {
+  enum ServingStatus {
+    UNKNOWN = 0;
+    SERVING = 1;
+    NOT_SERVING = 2;
+    SERVICE_UNKNOWN = 3;
+  }
+  ServingStatus status = 1;
+  string message = 2;
+  map<string, string> details = 3;
+}
+
+// Template Service
+service TemplateService {
+  rpc GetTemplate(GetTemplateRequest) returns (GetTemplateResponse);
+  rpc ListTemplates(ListTemplatesRequest) returns (ListTemplatesResponse);
+  rpc CreateTemplate(CreateTemplateRequest) returns (CreateTemplateResponse);
+  rpc UpdateTemplate(UpdateTemplateRequest) returns (UpdateTemplateResponse);
+  rpc DeleteTemplate(DeleteTemplateRequest) returns (google.protobuf.Empty);
+  rpc ValidateTemplate(ValidateTemplateRequest) returns (ValidateTemplateResponse);
+  rpc RenderTemplate(RenderTemplateRequest) returns (RenderTemplateResponse);
+}
+
+message GetTemplateRequest {
+  string id = 1;
+}
+
+message GetTemplateResponse {
+  Template template = 1;
+}
+
+message ListTemplatesRequest {
+  string category = 1;
+  string board_type = 2;
+  repeated string sensors = 3;
+  int32 page_size = 4;
+  string page_token = 5;
+}
+
+message ListTemplatesResponse {
+  repeated Template templates = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+}
+
+message CreateTemplateRequest {
+  string name = 2;
+  string description = 3;
+  string category = 4;
+  string board_type = 5;
+  string code = 6;
+  map<string, string> parameters = 7;
+  repeated string sensors = 8;
+}
+
+message CreateTemplateResponse {
+  Template template = 1;
+}
+
+message UpdateTemplateRequest {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string category = 4;
+  string board_type = 5;
+  string code = 6;
+  map<string, string> parameters = 7;
+  repeated string sensors = 8;
+}
+
+message UpdateTemplateResponse {
+  Template template = 1;
+}
+
+message DeleteTemplateRequest {
+  string id = 1;
+}
+
+message ValidateTemplateRequest {
+  string code = 1;
+  string board_type = 2;
+  map<string, string> parameters = 3;
+}
+
+message ValidateTemplateResponse {
+  bool is_valid = 1;
+  repeated string errors = 2;
+  repeated string warnings = 3;
+}
+
+message RenderTemplateRequest {
+  string template_id = 1;
+  map<string, string> parameters = 2;
+}
+
+message RenderTemplateResponse {
+  string rendered_code = 1;
+  bool success = 2;
+  repeated string errors = 3;
+}
+
+// Device Service
+service DeviceService {
+  rpc GetDevice(GetDeviceRequest) returns (GetDeviceResponse);
+  rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
+  rpc RegisterDevice(RegisterDeviceRequest) returns (RegisterDeviceResponse);
+  rpc UpdateDevice(UpdateDeviceRequest) returns (UpdateDeviceResponse);
+  rpc DeleteDevice(DeleteDeviceRequest) returns (google.protobuf.Empty);
+  rpc UpdateDeviceStatus(UpdateDeviceStatusRequest) returns (UpdateDeviceStatusResponse);
+  rpc GetDeviceTelemetry(GetDeviceTelemetryRequest) returns (GetDeviceTelemetryResponse);
+}
+
+message GetDeviceRequest {
+  string id = 1;
+}
+
+message GetDeviceResponse {
+  Device device = 1;
+}
+
+message ListDevicesRequest {
+  string status = 1;
+  string type = 2;
+  int32 page_size = 3;
+  string page_token = 4;
+}
+
+message ListDevicesResponse {
+  repeated Device devices = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+}
+
+message RegisterDeviceRequest {
+  string name = 1;
+  string type = 2;
+  map<string, string> metadata = 3;
+}
+
+message RegisterDeviceResponse {
+  Device device = 1;
+}
+
+message UpdateDeviceRequest {
+  string id = 1;
+  string name = 2;
+  map<string, string> metadata = 3;
+}
+
+message UpdateDeviceResponse {
+  Device device = 1;
+}
+
+message DeleteDeviceRequest {
+  string id = 1;
+}
+
+message UpdateDeviceStatusRequest {
+  string id = 1;
+  string status = 2;
+}
+
+message UpdateDeviceStatusResponse {
+  Device device = 1;
+}
+
+message GetDeviceTelemetryRequest {
+  string device_id = 1;
+  google.protobuf.Timestamp start_time = 2;
+  google.protobuf.Timestamp end_time = 3;
+  string interval = 4;
+}
+
+message GetDeviceTelemetryResponse {
+  repeated TelemetryData telemetry = 1;
+}
+
+// Telemetry Service
+service TelemetryService {
+  rpc IngestTelemetry(IngestTelemetryRequest) returns (IngestTelemetryResponse);
+  rpc GetTelemetry(GetTelemetryRequest) returns (GetTelemetryResponse);
+  rpc StreamTelemetry(StreamTelemetryRequest) returns (stream TelemetryData);
+  rpc GetAggregatedTelemetry(GetAggregatedTelemetryRequest) returns (GetAggregatedTelemetryResponse);
+}
+
+message IngestTelemetryRequest {
+  repeated TelemetryData telemetry_data = 1;
+}
+
+message IngestTelemetryResponse {
+  bool success = 1;
+  repeated string errors = 2;
+}
+
+message GetTelemetryRequest {
+  string device_id = 1;
+  google.protobuf.Timestamp start_time = 2;
+  google.protobuf.Timestamp end_time = 3;
+  string interval = 4;
+}
+
+message GetTelemetryResponse {
+  repeated TelemetryData telemetry = 1;
+}
+
+message StreamTelemetryRequest {
+  string device_id = 1;
+}
+
+message GetAggregatedTelemetryRequest {
+  string device_id = 1;
+  google.protobuf.Timestamp start_time = 2;
+  google.protobuf.Timestamp end_time = 3;
+  string aggregation = 4; // avg, min, max, sum, count
+}
+
+message GetAggregatedTelemetryResponse {
+  map<string, double> aggregated_values = 1;
+}
+
+// NLP Service
+service NLPService {
+  rpc ParseNaturalLanguage(ParseNaturalLanguageRequest) returns (ParseNaturalLanguageResponse);
+  rpc GeneratePlan(GeneratePlanRequest) returns (GeneratePlanResponse);
+  rpc ValidatePlan(ValidatePlanRequest) returns (ValidatePlanResponse);
+  rpc GetRecommendations(GetRecommendationsRequest) returns (GetRecommendationsResponse);
+}
+
+message ParseNaturalLanguageRequest {
+  string text = 1;
+  string language = 2;
+  map<string, string> context = 3;
+}
+
+message ParseNaturalLanguageResponse {
+  string intent = 1;
+  repeated string entities = 2;
+  map<string, string> parameters = 3;
+  float confidence = 4;
+}
+
+message GeneratePlanRequest {
+  string request = 1;
+  map<string, string> context = 2;
+  repeated string constraints = 3;
+}
+
+message GeneratePlanResponse {
+  string plan_id = 1;
+  string plan_text = 2;
+  repeated string steps = 3;
+  repeated string required_components = 4;
+  map<string, string> parameters = 5;
+  float confidence = 6;
+}
+
+message ValidatePlanRequest {
+  string plan_id = 1;
+  map<string, string> parameters = 2;
+}
+
+message ValidatePlanResponse {
+  bool is_valid = 1;
+  repeated string errors = 2;
+  repeated string warnings = 3;
+  map<string, string> safety_checks = 4;
+}
+
+message GetRecommendationsRequest {
+  string device_type = 1;
+  repeated string requirements = 2;
+  map<string, string> context = 3;
+}
+
+message GetRecommendationsResponse {
+  repeated string recommended_templates = 1;
+  repeated string recommended_components = 2;
+  map<string, string> reasoning = 3;
+}
+
+// Provisioning Service
+service ProvisioningService {
+  rpc CompileCode(CompileCodeRequest) returns (CompileCodeResponse);
+  rpc FlashDevice(FlashDeviceRequest) returns (FlashDeviceResponse);
+  rpc GetCompilationStatus(GetCompilationStatusRequest) returns (GetCompilationStatusResponse);
+  rpc GetFlashStatus(GetFlashStatusRequest) returns (GetFlashStatusResponse);
+}
+
+message CompileCodeRequest {
+  string code = 1;
+  string board_type = 2;
+  map<string, string> options = 3;
+}
+
+message CompileCodeResponse {
+  string compilation_id = 1;
+  bool success = 2;
+  string binary_data = 3;
+  repeated string errors = 4;
+  repeated string warnings = 5;
+  map<string, string> metadata = 6;
+}
+
+message FlashDeviceRequest {
+  string device_id = 1;
+  string binary_data = 2;
+  string port = 3;
+}
+
+message FlashDeviceResponse {
+  string flash_id = 1;
+  bool success = 2;
+  repeated string errors = 3;
+  map<string, string> metadata = 4;
+}
+
+message GetCompilationStatusRequest {
+  string compilation_id = 1;
+}
+
+message GetCompilationStatusResponse {
+  string status = 1;
+  int32 progress = 2;
+  string message = 3;
+  google.protobuf.Timestamp started_at = 4;
+  google.protobuf.Timestamp completed_at = 5;
+}
+
+message GetFlashStatusRequest {
+  string flash_id = 1;
+}
+
+message GetFlashStatusResponse {
+  string status = 1;
+  int32 progress = 2;
+  string message = 3;
+  google.protobuf.Timestamp started_at = 4;
+  google.protobuf.Timestamp completed_at = 5;
+}
+
+// OTA Service
+service OTAService {
+  rpc CreateRelease(CreateReleaseRequest) returns (CreateReleaseResponse);
+  rpc ListReleases(ListReleasesRequest) returns (ListReleasesResponse);
+  rpc GetRelease(GetReleaseRequest) returns (GetReleaseResponse);
+  rpc DeployRelease(DeployReleaseRequest) returns (DeployReleaseResponse);
+  rpc GetDeviceUpdates(GetDeviceUpdatesRequest) returns (GetDeviceUpdatesResponse);
+  rpc ReportUpdateStatus(ReportUpdateStatusRequest) returns (ReportUpdateStatusResponse);
+}
+
+message CreateReleaseRequest {
+  string version = 1;
+  string description = 2;
+  string firmware_data = 3;
+  string device_type = 4;
+  bool is_active = 5;
+  map<string, string> metadata = 6;
+}
+
+message CreateReleaseResponse {
+  string release_id = 1;
+  string version = 2;
+  google.protobuf.Timestamp created_at = 3;
+}
+
+message ListReleasesRequest {
+  string device_type = 1;
+  bool active_only = 2;
+  int32 page_size = 3;
+  string page_token = 4;
+}
+
+message ListReleasesResponse {
+  repeated Release releases = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+}
+
+message GetReleaseRequest {
+  string release_id = 1;
+}
+
+message GetReleaseResponse {
+  Release release = 1;
+}
+
+message Release {
+  string id = 1;
+  string version = 2;
+  string description = 3;
+  string device_type = 4;
+  bool is_active = 5;
+  google.protobuf.Timestamp created_at = 6;
+  map<string, string> metadata = 7;
+}
+
+message DeployReleaseRequest {
+  string release_id = 1;
+  repeated string device_ids = 2;
+  int32 rollout_percentage = 3;
+  bool auto_rollback = 4;
+}
+
+message DeployReleaseResponse {
+  string deployment_id = 1;
+  string status = 2;
+  repeated string targeted_devices = 3;
+  google.protobuf.Timestamp started_at = 4;
+}
+
+message GetDeviceUpdatesRequest {
+  string device_id = 1;
+}
+
+message GetDeviceUpdatesResponse {
+  repeated UpdateInfo updates = 1;
+}
+
+message UpdateInfo {
+  string release_id = 1;
+  string version = 2;
+  string status = 3;
+  google.protobuf.Timestamp available_at = 4;
+  map<string, string> metadata = 5;
+}
+
+message ReportUpdateStatusRequest {
+  string device_id = 1;
+  string release_id = 2;
+  string status = 3;
+  string message = 4;
+  map<string, string> metadata = 5;
+}
+
+message ReportUpdateStatusResponse {
+  bool success = 1;
+  string update_id = 2;
+}
+
+// Health Service
+service HealthService {
+  rpc Check(google.protobuf.Empty) returns (HealthCheckResponse);
+  rpc Watch(google.protobuf.Empty) returns (stream HealthCheckResponse);
+}
+
+// Authentication Service
+service AuthService {
+  rpc Authenticate(AuthenticateRequest) returns (AuthenticateResponse);
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+  rpc RevokeToken(RevokeTokenRequest) returns (google.protobuf.Empty);
+  rpc GetUserProfile(GetUserProfileRequest) returns (GetUserProfileResponse);
+}
+
+message AuthenticateRequest {
+  string username = 1;
+  string password = 2;
+  map[string, string> metadata = 3;
+}
+
+message AuthenticateResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  User user = 4;
+}
+
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+message RefreshTokenResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+message ValidateTokenRequest {
+  string token = 1;
+}
+
+message ValidateTokenResponse {
+  bool is_valid = 1;
+  User user = 2;
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+message RevokeTokenRequest {
+  string token = 1;
+}
+
+message GetUserProfileRequest {
+  string user_id = 1;
+}
+
+message GetUserProfileResponse {
+  User user = 1;
+}
