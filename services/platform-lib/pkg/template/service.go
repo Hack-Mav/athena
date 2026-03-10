@@ -191,9 +191,11 @@ func (s *Service) RenderTemplate(ctx context.Context, id string, version string,
 	var codeTemplate string
 	for _, asset := range tmpl.Assets {
 		if asset.Type == "code" && strings.Contains(asset.Path, "main.ino") {
-			// In a real implementation, you would load the template content from storage
-			codeTemplate = s.getDefaultArduinoTemplate(tmpl)
-			break
+			// Use the template content from asset metadata if available
+			if content, ok := asset.Metadata["content"].(string); ok {
+				codeTemplate = content
+				break
+			}
 		}
 	}
 
